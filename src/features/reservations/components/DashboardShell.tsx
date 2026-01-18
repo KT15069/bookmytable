@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,6 +29,9 @@ import { TableGrid } from "./TableGrid";
 import { ReservationsList } from "./ReservationsList";
 import { AnalyticsTab } from "./AnalyticsTab";
 import { loadSettings, saveSettings, SettingsTab, type SettingsState } from "./SettingsTab";
+import { ReservationForm } from "./ReservationForm";
+import { ReservationsRangeList } from "./ReservationsRangeList";
+import { AIAssistantTab } from "./AIAssistantTab";
 
 export function DashboardShell() {
   const { toast } = useToast();
@@ -168,11 +172,12 @@ export function DashboardShell() {
         ) : null}
 
         <Tabs defaultValue="tables" className="mt-6">
-          <TabsList>
-            <TabsTrigger value="tables">Tables</TabsTrigger>
-            <TabsTrigger value="reservations">Today</TabsTrigger>
-            <TabsTrigger value="analytics">Visualization</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsList className="h-12 w-full justify-start rounded-full bg-muted/60 p-1 shadow-card">
+            <TabsTrigger value="tables" className="rounded-full px-5">Tables</TabsTrigger>
+            <TabsTrigger value="reservations" className="rounded-full px-5">Reservations</TabsTrigger>
+            <TabsTrigger value="analytics" className="rounded-full px-5">Analytics</TabsTrigger>
+            <TabsTrigger value="assistant" className="rounded-full px-5">AI Assistant</TabsTrigger>
+            <TabsTrigger value="settings" className="rounded-full px-5">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tables" className="mt-4 grid gap-4 lg:grid-cols-[1fr,380px]">
@@ -215,48 +220,51 @@ export function DashboardShell() {
             </div>
           </TabsContent>
 
-          <TabsContent value="reservations" className="mt-4">
+          <TabsContent value="reservations" className="mt-4 grid gap-4 lg:grid-cols-2">
             <Card className="shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between gap-3">
-                <CardTitle>All reservations — {format(date, "PPP")}</CardTitle>
-                <div className="text-sm text-muted-foreground">{dayLoading ? "Loading…" : `${dayReservations.length} booked`}</div>
+              <CardHeader className="border-b border-border/60">
+                <CardTitle>New reservation</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-3">
-                {dayReservations.length === 0 ? (
-                  <div className="rounded-2xl border border-border bg-background p-6 text-sm text-muted-foreground">
-                    No reservations yet.
-                  </div>
-                ) : (
-                  dayReservations.map((r) => (
-                    <div key={r.id} className="rounded-2xl border border-border bg-background p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="font-medium">{r.name}</div>
-                          <div className="text-sm text-muted-foreground">{r.email} · {r.phone}</div>
-                          <div className="mt-2 text-sm text-muted-foreground">
-                            Table <span className="text-foreground">{r.table_id}</span> · {r.guest_count} guests
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm">
-                            {format(new Date(r.start_at), "HH:mm")}–{format(new Date(r.end_at), "HH:mm")}
-                          </div>
-                          <Button size="sm" variant="outline" className="mt-3" onClick={() => handleCancel(r.id)}>
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
+              <CardContent className="p-6">
+                <ReservationForm
+                  dayReservations={dayReservations}
+                  selectedDate={date}
+                  businessHours={settings.businessHours}
+                  onBook={handleBook}
+                />
               </CardContent>
             </Card>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-3">
+                <div className="text-sm text-muted-foreground">Range:</div>
+                <Select value={analyticsRange} onValueChange={(v) => setAnalyticsRange(v as any)}>
+                  <SelectTrigger className="w-[180px] rounded-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">Last 7 days</SelectItem>
+                    <SelectItem value="30d">Last 30 days</SelectItem>
+                    <SelectItem value="6mo">Last 6 months</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {analyticsLoading ? (
+                <Card className="shadow-card">
+                  <CardContent className="p-8 text-sm text-muted-foreground">Loading…</CardContent>
+                </Card>
+              ) : (
+                <ReservationsRangeList reservations={analyticsReservations} onCancel={handleCancel} />
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="analytics" className="mt-4 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="font-display text-2xl">Visualization</div>
+                <div className="font-display text-2xl">Analytics</div>
                 <div className="text-sm text-muted-foreground">Trends: today, week, last 30 days, last 6 months.</div>
               </div>
               <div className="flex items-center gap-2">
@@ -274,6 +282,10 @@ export function DashboardShell() {
             ) : (
               <AnalyticsTab reservations={analyticsReservations} />
             )}
+          </TabsContent>
+
+          <TabsContent value="assistant" className="mt-4">
+            <AIAssistantTab />
           </TabsContent>
 
           <TabsContent value="settings" className="mt-4">
