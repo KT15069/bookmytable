@@ -4,17 +4,35 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ReservationRow, RestaurantTable } from "../types";
 
-function overlappingForWindow(reservations: ReservationRow[], tableId: string, startAt: Date, endAt: Date) {
-  return reservations.filter((r) => {
-    if (r.status !== "booked" || r.table_id !== tableId) return false;
+function statusForNow(
+  reservations: ReservationRow[],
+  tableId: string,
+  now: Date,
+  upcomingUntil: Date,
+) {
+  const booked = reservations.filter((r) => r.status === "booked" && r.table_id === tableId);
+
+  const active = booked.find((r) => {
     const a = new Date(r.start_at);
     const b = new Date(r.end_at);
-    return startAt < b && endAt > a;
+    return now >= a && now < b;
   });
+
+  if (active) return { kind: "booked" as const, active };
+
+  const next = booked
+    .filter((r) => {
+      const a = new Date(r.start_at);
+      return a >= now && a <= upcomingUntil;
+    })
+    .sort((x, y) => +new Date(x.start_at) - +new Date(y.start_at))[0];
+
+  if (next) return { kind: "upcoming" as const, next };
+
+  return { kind: "free" as const };
 }
 
 export function TableGrid({
@@ -31,11 +49,23 @@ export function TableGrid({
   onSelectTable: (tableId: string) => void;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {tables.map((t) => {
-        const overlaps = overlappingForWindow(reservations, t.id, windowStart, windowEnd);
-        const active = overlaps[0];
-        const isBooked = overlaps.length > 0;
+        const status = statusForNow(reservations, t.id, windowStart, windowEnd);
+
+        const statusStyles =
+          status.kind === "booked"
+            ? "border-table-booked/40 bg-table-booked text-table-booked-foreground"
+            : status.kind === "upcoming"
+              ? "border-table-upcoming/45 bg-table-upcoming text-table-upcoming-foreground"
+              : "border-table-free/35 bg-table-free text-table-free-foreground";
+
+        const pillStyles =
+          status.kind === "booked"
+            ? "bg-table-booked/60 text-table-booked-foreground"
+            : status.kind === "upcoming"
+              ? "bg-table-upcoming/70 text-table-upcoming-foreground"
+              : "bg-table-free/65 text-table-free-foreground";
 
         return (
           <button
@@ -44,41 +74,36 @@ export function TableGrid({
             onClick={() => onSelectTable(t.id)}
             className={cn(
               "group text-left",
-              "rounded-2xl border border-border bg-card p-4 shadow-card transition-[transform,box-shadow]",
+              "rounded-2xl border p-4 shadow-card transition-[transform,box-shadow]",
               "hover:-translate-y-0.5 hover:shadow-soft",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              statusStyles,
             )}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <div className="font-display text-xl">{t.label}</div>
-                  <Badge variant={isBooked ? "secondary" : "default"}>
-                    {isBooked ? "Booked" : "Available"}
-                  </Badge>
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {t.minGuests === t.maxGuests
-                    ? `${t.maxGuests} guests`
-                    : `${t.minGuests}–${t.maxGuests} guests`}
-                </div>
+            <div className="flex h-full flex-col">
+              <div className="font-display text-xl leading-none text-foreground">{t.label}</div>
+              <div className="mt-2 text-sm text-muted-foreground">
+                {t.minGuests === t.maxGuests ? `1–${t.maxGuests} guests` : `${t.minGuests}–${t.maxGuests} guests`}
               </div>
-              <div className="text-right text-xs text-muted-foreground">
-                {format(windowStart, "HH:mm")}–{format(windowEnd, "HH:mm")}
-              </div>
-            </div>
 
-            {active ? (
-              <div className="mt-4 rounded-xl bg-accent p-3">
-                <div className="text-sm font-medium text-accent-foreground">{active.name}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{active.email}</div>
-                <div className="text-xs text-muted-foreground">{active.phone}</div>
+              <div className="mt-auto pt-4">
+                <div className={cn("inline-flex items-center rounded-full px-3 py-1 text-xs font-medium", pillStyles)}>
+                  {status.kind === "booked"
+                    ? "Occupied"
+                    : status.kind === "upcoming"
+                      ? `Upcoming · ${format(new Date(status.next.start_at), "HH:mm")}`
+                      : "Free"}
+                </div>
               </div>
-            ) : (
-              <div className="mt-4 text-sm text-muted-foreground">
-                Empty in this window.
-              </div>
-            )}
+
+              {status.kind === "booked" ? (
+                <div className="mt-3 rounded-xl bg-background/70 p-3">
+                  <div className="text-sm font-medium text-foreground">{status.active.name}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{status.active.email}</div>
+                  <div className="text-xs text-muted-foreground">{status.active.phone}</div>
+                </div>
+              ) : null}
+            </div>
           </button>
         );
       })}
