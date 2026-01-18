@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
-import { addDays, addHours, endOfDay, format, startOfDay, startOfWeek, subDays, subMonths } from "date-fns";
+import {
+  addDays,
+  addMinutes,
+  endOfDay,
+  format,
+  startOfDay,
+  startOfWeek,
+  subDays,
+  subMonths,
+} from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "next-themes";
 
 import { isSupabaseConfigured } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,27 +24,15 @@ import { RESTAURANT_TABLES } from "../constants";
 import type { ReservationRow } from "../types";
 import { cancelReservation, createReservation, fetchReservations } from "../api";
 import { ReservationFormDialog } from "./ReservationFormDialog";
-import { TableGrid, TableWindowControls } from "./TableGrid";
+import { TableGrid } from "./TableGrid";
 import { ReservationsList } from "./ReservationsList";
 import { AnalyticsTab } from "./AnalyticsTab";
 import { loadSettings, saveSettings, SettingsTab, type SettingsState } from "./SettingsTab";
 
-function timeOnDate(date: Date, time: string) {
-  const [hh, mm] = time.split(":").map((n) => Number(n));
-  const d = new Date(date);
-  d.setHours(hh, mm, 0, 0);
-  return d;
-}
-
-function clampWindow(date: Date, startTime: string, endTime: string) {
-  const start = timeOnDate(date, startTime);
-  const end = timeOnDate(date, endTime);
-  return { start, end: end > start ? end : addHours(start, 1) };
-}
-
 export function DashboardShell() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { theme, setTheme } = useTheme();
 
   const [settings, setSettings] = useState<SettingsState>(() => ({ businessHours: { start: "08:00", end: "23:00" } }));
 
@@ -46,13 +45,16 @@ export function DashboardShell() {
     saveSettings(settings);
   }, [settings]);
 
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const [date, setDate] = useState(() => new Date());
-  const [windowStart, setWindowStart] = useState(() => {
-    const now = new Date();
-    now.setMinutes(Math.floor(now.getMinutes() / 20) * 20, 0, 0);
-    return now;
-  });
-  const [windowEnd, setWindowEnd] = useState(() => addHours(new Date(), 1));
+  const windowStart = now;
+  const windowEnd = addMinutes(now, 25);
+
   const [selectedTable, setSelectedTable] = useState<string>(RESTAURANT_TABLES[0].id);
 
   const dayRange = useMemo(() => ({ start: startOfDay(date), end: endOfDay(date) }), [date]);
@@ -121,12 +123,19 @@ export function DashboardShell() {
         <div className="mx-auto max-w-6xl px-4 py-8">
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
-              <h1 className="font-display text-4xl tracking-tight md:text-5xl">Reservations</h1>
+              <h1 className="font-display text-4xl tracking-tight md:text-5xl">Restaurant Reservations Dashboard</h1>
               <p className="mt-2 max-w-2xl text-muted-foreground">
-                A clean, staff-friendly dashboard to book, cancel, and analyze table reservations.
+                Live table status, quick bookings and smart analytics for your service team.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2 shadow-card">
+                <span className="text-sm text-muted-foreground">Light</span>
+                <Switch checked={theme === "dark"} onCheckedChange={(v) => setTheme(v ? "dark" : "light")} />
+                <span className="text-sm text-muted-foreground">Dark</span>
+              </div>
+
               <ReservationFormDialog
                 dayReservations={dayReservations}
                 selectedDate={date}
@@ -166,33 +175,44 @@ export function DashboardShell() {
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="tables" className="mt-4 grid gap-4">
-            <TableWindowControls
-              date={date}
-              windowStart={windowStart}
-              windowEnd={windowEnd}
-              onDateChange={(d) => {
-                setDate(d);
-                const { start, end } = clampWindow(d, format(windowStart, "HH:mm"), format(windowEnd, "HH:mm"));
-                setWindowStart(start);
-                setWindowEnd(end);
-              }}
-              onWindowChange={(startTime, endTime) => {
-                const { start, end } = clampWindow(date, startTime, endTime);
-                setWindowStart(start);
-                setWindowEnd(end);
-              }}
-            />
+          <TabsContent value="tables" className="mt-4 grid gap-4 lg:grid-cols-[1fr,380px]">
+            <Card className="shadow-card">
+              <CardHeader className="flex flex-row items-center justify-between gap-3">
+                <CardTitle>Table status today</CardTitle>
+                <div className="text-sm text-muted-foreground">{format(now, "EEEE, dd LLL · HH:mm")}</div>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <TableGrid
+                  tables={RESTAURANT_TABLES}
+                  reservations={dayReservations}
+                  windowStart={windowStart}
+                  windowEnd={windowEnd}
+                  onSelectTable={setSelectedTable}
+                />
 
-            <TableGrid
-              tables={RESTAURANT_TABLES}
-              reservations={dayReservations}
-              windowStart={windowStart}
-              windowEnd={windowEnd}
-              onSelectTable={setSelectedTable}
-            />
+                <div className="text-xs text-muted-foreground">
+                  Colors: red = occupied now, yellow = booked within 25 min, green = free now.
+                </div>
+              </CardContent>
+            </Card>
 
-            <ReservationsList tableId={selectedTable} reservations={dayReservations} onCancel={handleCancel} />
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle>Quick stats</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                <p>
+                  Use this view during service to quickly see which tables are free, currently seated, or about to turn.
+                </p>
+                <p className="mt-4">
+                  Combine this with the Reservations and Visualization tabs to coordinate walk-ins and manage peak hours.
+                </p>
+              </CardContent>
+            </Card>
+
+            <div className="lg:col-span-2">
+              <ReservationsList tableId={selectedTable} reservations={dayReservations} onCancel={handleCancel} />
+            </div>
           </TabsContent>
 
           <TabsContent value="reservations" className="mt-4">

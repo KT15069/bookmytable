@@ -57,6 +57,14 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        table: {
+          free: "hsl(var(--table-free))",
+          "free-foreground": "hsl(var(--table-free-foreground))",
+          booked: "hsl(var(--table-booked))",
+          "booked-foreground": "hsl(var(--table-booked-foreground))",
+          upcoming: "hsl(var(--table-upcoming))",
+          "upcoming-foreground": "hsl(var(--table-upcoming-foreground))",
+        },
       },
       fontFamily: {
         sans: ["IBM Plex Sans", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica", "Arial", "sans-serif"],

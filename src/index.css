@@ -64,6 +64,16 @@ All colors MUST be HSL.
     --sidebar-border: 28 18% 88%;
 
     --sidebar-ring: 172 56% 28%;
+
+    /* Table status colors (semantic) */
+    --table-free: 142 62% 92%;
+    --table-free-foreground: 142 45% 22%;
+
+    --table-booked: 0 78% 92%;
+    --table-booked-foreground: 0 56% 28%;
+
+    --table-upcoming: 48 92% 90%;
+    --table-upcoming-foreground: 36 70% 26%;
   }
 
   .dark {
@@ -112,6 +122,16 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 30 33% 96%;
     --sidebar-border: 222 16% 18%;
     --sidebar-ring: 172 56% 52%;
+
+    /* Table status colors (semantic) */
+    --table-free: 142 42% 18%;
+    --table-free-foreground: 140 45% 88%;
+
+    --table-booked: 0 48% 20%;
+    --table-booked-foreground: 0 72% 88%;
+
+    --table-upcoming: 44 48% 22%;
+    --table-upcoming-foreground: 46 92% 88%;
   }
 }
 
