@@ -169,10 +169,22 @@ export function DashboardShell() {
       <main className="mx-auto max-w-6xl px-4 pb-10 pt-6">
         {!isSupabaseConfigured ? (
           <Alert className="shadow-card">
-            <AlertTitle>Connect your Supabase env vars</AlertTitle>
+            <AlertTitle>Database not connected</AlertTitle>
             <AlertDescription>
-              Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in your project environment.
-              Once set, this dashboard will load and write reservations from your database.
+              <div className="space-y-2">
+                <div>
+                  This app needs <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>.
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Detected in this build: URL = <b>{import.meta.env.VITE_SUPABASE_URL ? "yes" : "no"}</b>, ANON KEY ={" "}
+                  <b>{import.meta.env.VITE_SUPABASE_ANON_KEY ? "yes" : "no"}</b>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+                    Reload
+                  </Button>
+                </div>
+              </div>
             </AlertDescription>
           </Alert>
         ) : null}
