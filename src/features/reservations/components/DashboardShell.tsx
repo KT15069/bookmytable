@@ -1,0 +1,275 @@
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { addDays, addHours, endOfDay, format, startOfDay, startOfWeek, subDays, subMonths } from "date-fns";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { isSupabaseConfigured } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+
+import { RESTAURANT_TABLES } from "../constants";
+import type { ReservationRow } from "../types";
+import { cancelReservation, createReservation, fetchReservations } from "../api";
+import { ReservationFormDialog } from "./ReservationFormDialog";
+import { TableGrid, TableWindowControls } from "./TableGrid";
+import { ReservationsList } from "./ReservationsList";
+import { AnalyticsTab } from "./AnalyticsTab";
+import { loadSettings, saveSettings, SettingsTab, type SettingsState } from "./SettingsTab";
+
+function timeOnDate(date: Date, time: string) {
+  const [hh, mm] = time.split(":").map((n) => Number(n));
+  const d = new Date(date);
+  d.setHours(hh, mm, 0, 0);
+  return d;
+}
+
+function clampWindow(date: Date, startTime: string, endTime: string) {
+  const start = timeOnDate(date, startTime);
+  const end = timeOnDate(date, endTime);
+  return { start, end: end > start ? end : addHours(start, 1) };
+}
+
+export function DashboardShell() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const [settings, setSettings] = useState<SettingsState>(() => ({ businessHours: { start: "08:00", end: "23:00" } }));
+
+  useEffect(() => {
+    const s = loadSettings();
+    setSettings(s);
+  }, []);
+
+  useEffect(() => {
+    saveSettings(settings);
+  }, [settings]);
+
+  const [date, setDate] = useState(() => new Date());
+  const [windowStart, setWindowStart] = useState(() => {
+    const now = new Date();
+    now.setMinutes(Math.floor(now.getMinutes() / 20) * 20, 0, 0);
+    return now;
+  });
+  const [windowEnd, setWindowEnd] = useState(() => addHours(new Date(), 1));
+  const [selectedTable, setSelectedTable] = useState<string>(RESTAURANT_TABLES[0].id);
+
+  const dayRange = useMemo(() => ({ start: startOfDay(date), end: endOfDay(date) }), [date]);
+
+  const { data: dayReservations = [], isLoading: dayLoading } = useQuery({
+    queryKey: ["reservations", "day", format(date, "yyyy-MM-dd")],
+    queryFn: () => fetchReservations(dayRange.start, dayRange.end),
+    enabled: isSupabaseConfigured,
+  });
+
+  const [analyticsRange, setAnalyticsRange] = useState<"today" | "week" | "30d" | "6mo">("week");
+  const analyticsDates = useMemo(() => {
+    const now = new Date();
+    if (analyticsRange === "today") return { start: startOfDay(now), end: endOfDay(now) };
+    if (analyticsRange === "week") return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfDay(addDays(now, 1)) };
+    if (analyticsRange === "30d") return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
+    return { start: startOfDay(subMonths(now, 6)), end: endOfDay(now) };
+  }, [analyticsRange]);
+
+  const { data: analyticsReservations = [], isLoading: analyticsLoading } = useQuery({
+    queryKey: ["reservations", "analytics", analyticsRange],
+    queryFn: () => fetchReservations(analyticsDates.start, analyticsDates.end),
+    enabled: isSupabaseConfigured,
+  });
+
+  async function handleCancel(id: string) {
+    await cancelReservation(id);
+    toast({ title: "Reservation cancelled" });
+    qc.invalidateQueries({ queryKey: ["reservations"] });
+  }
+
+  async function handleBook(args: {
+    tableId: string;
+    guestCount: number;
+    startAt: Date;
+    endAt: Date;
+    name: string;
+    email: string;
+    phone: string;
+  }) {
+    await createReservation({
+      table_id: args.tableId,
+      guest_count: args.guestCount,
+      start_at: args.startAt.toISOString(),
+      end_at: args.endAt.toISOString(),
+      name: args.name,
+      email: args.email,
+      phone: args.phone,
+      status: "booked",
+    });
+
+    qc.invalidateQueries({ queryKey: ["reservations"] });
+  }
+
+  function onMouseMove(e: MouseEvent<HTMLElement>) {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const mx = ((e.clientX - r.left) / r.width) * 100;
+    const my = ((e.clientY - r.top) / r.height) * 100;
+    (e.currentTarget as HTMLElement).style.setProperty("--mx", `${mx}%`);
+    (e.currentTarget as HTMLElement).style.setProperty("--my", `${my}%`);
+  }
+
+  return (
+    <div onMouseMove={onMouseMove} className="min-h-screen bg-hero">
+      <header className="border-b border-border/70">
+        <div className="mx-auto max-w-6xl px-4 py-8">
+          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h1 className="font-display text-4xl tracking-tight md:text-5xl">Reservations</h1>
+              <p className="mt-2 max-w-2xl text-muted-foreground">
+                A clean, staff-friendly dashboard to book, cancel, and analyze table reservations.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <ReservationFormDialog
+                dayReservations={dayReservations}
+                selectedDate={date}
+                businessHours={settings.businessHours}
+                onBook={handleBook}
+              />
+              <Button
+                variant="outline"
+                onClick={() => {
+                  qc.invalidateQueries({ queryKey: ["reservations"] });
+                  toast({ title: "Refreshed" });
+                }}
+              >
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-4 pb-10 pt-6">
+        {!isSupabaseConfigured ? (
+          <Alert className="shadow-card">
+            <AlertTitle>Connect your Supabase env vars</AlertTitle>
+            <AlertDescription>
+              Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in your project environment.
+              Once set, this dashboard will load and write reservations from your database.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        <Tabs defaultValue="tables" className="mt-6">
+          <TabsList>
+            <TabsTrigger value="tables">Tables</TabsTrigger>
+            <TabsTrigger value="reservations">Today</TabsTrigger>
+            <TabsTrigger value="analytics">Visualization</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tables" className="mt-4 grid gap-4">
+            <TableWindowControls
+              date={date}
+              windowStart={windowStart}
+              windowEnd={windowEnd}
+              onDateChange={(d) => {
+                setDate(d);
+                const { start, end } = clampWindow(d, format(windowStart, "HH:mm"), format(windowEnd, "HH:mm"));
+                setWindowStart(start);
+                setWindowEnd(end);
+              }}
+              onWindowChange={(startTime, endTime) => {
+                const { start, end } = clampWindow(date, startTime, endTime);
+                setWindowStart(start);
+                setWindowEnd(end);
+              }}
+            />
+
+            <TableGrid
+              tables={RESTAURANT_TABLES}
+              reservations={dayReservations}
+              windowStart={windowStart}
+              windowEnd={windowEnd}
+              onSelectTable={setSelectedTable}
+            />
+
+            <ReservationsList tableId={selectedTable} reservations={dayReservations} onCancel={handleCancel} />
+          </TabsContent>
+
+          <TabsContent value="reservations" className="mt-4">
+            <Card className="shadow-card">
+              <CardHeader className="flex flex-row items-center justify-between gap-3">
+                <CardTitle>All reservations — {format(date, "PPP")}</CardTitle>
+                <div className="text-sm text-muted-foreground">{dayLoading ? "Loading…" : `${dayReservations.length} booked`}</div>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                {dayReservations.length === 0 ? (
+                  <div className="rounded-2xl border border-border bg-background p-6 text-sm text-muted-foreground">
+                    No reservations yet.
+                  </div>
+                ) : (
+                  dayReservations.map((r) => (
+                    <div key={r.id} className="rounded-2xl border border-border bg-background p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="font-medium">{r.name}</div>
+                          <div className="text-sm text-muted-foreground">{r.email} · {r.phone}</div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            Table <span className="text-foreground">{r.table_id}</span> · {r.guest_count} guests
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm">
+                            {format(new Date(r.start_at), "HH:mm")}–{format(new Date(r.end_at), "HH:mm")}
+                          </div>
+                          <Button size="sm" variant="outline" className="mt-3" onClick={() => handleCancel(r.id)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="font-display text-2xl">Visualization</div>
+                <div className="text-sm text-muted-foreground">Trends: today, week, last 30 days, last 6 months.</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant={analyticsRange === "today" ? "default" : "outline"} size="sm" onClick={() => setAnalyticsRange("today")}>Today</Button>
+                <Button variant={analyticsRange === "week" ? "default" : "outline"} size="sm" onClick={() => setAnalyticsRange("week")}>Week</Button>
+                <Button variant={analyticsRange === "30d" ? "default" : "outline"} size="sm" onClick={() => setAnalyticsRange("30d")}>30 days</Button>
+                <Button variant={analyticsRange === "6mo" ? "default" : "outline"} size="sm" onClick={() => setAnalyticsRange("6mo")}>6 months</Button>
+              </div>
+            </div>
+
+            {analyticsLoading ? (
+              <Card className="shadow-card">
+                <CardContent className="p-8 text-sm text-muted-foreground">Loading analytics…</CardContent>
+              </Card>
+            ) : (
+              <AnalyticsTab reservations={analyticsReservations} />
+            )}
+          </TabsContent>
+
+          <TabsContent value="settings" className="mt-4">
+            <SettingsTab
+              settings={settings}
+              onChange={(s) => setSettings(s)}
+            />
+          </TabsContent>
+        </Tabs>
+      </main>
+
+      <footer className="border-t border-border/70">
+        <div className="mx-auto max-w-6xl px-4 py-6 text-xs text-muted-foreground">
+          Tip: Enable staff login + strict database policies before using in production.
+        </div>
+      </footer>
+    </div>
+  );
+}
