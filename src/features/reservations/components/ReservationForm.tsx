@@ -83,19 +83,31 @@ export function ReservationForm({
 
     const table = findAvailableTable(RESTAURANT_TABLES, dayReservations, values.guests, startAt, endAt);
     if (table) {
-      await onBook({
-        tableId: table.id,
-        guestCount: values.guests,
-        startAt,
-        endAt,
-        name: values.name,
-        email: values.email,
-        phone: values.phone,
-      });
+      try {
+        await onBook({
+          tableId: table.id,
+          guestCount: values.guests,
+          startAt,
+          endAt,
+          name: values.name,
+          email: values.email,
+          phone: values.phone,
+        });
 
-      toast({ title: `Booked ${table.label}`, description: `${values.guests} guests · ${values.start}–${values.end}` });
-      onBooked?.();
-      form.reset({ ...values });
+        toast({
+          title: `Booked ${table.label}`,
+          description: `${values.guests} guests · ${values.start}–${values.end}`,
+        });
+        onBooked?.();
+        form.reset({ ...values });
+      } catch (e: any) {
+        const message = typeof e?.message === "string" ? e.message : "Could not save booking to the database.";
+        toast({
+          title: "Booking failed",
+          description: message,
+          variant: "destructive",
+        });
+      }
       return;
     }
 

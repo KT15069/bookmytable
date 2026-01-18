@@ -99,6 +99,12 @@ export function DashboardShell() {
     email: string;
     phone: string;
   }) {
+    if (!isSupabaseConfigured) {
+      throw new Error(
+        "Database is not connected yet. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then refresh the page.",
+      );
+    }
+
     await createReservation({
       table_id: args.tableId,
       guest_count: args.guestCount,
