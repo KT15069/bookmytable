@@ -12,7 +12,12 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 
-import { isSupabaseConfigured } from "@/integrations/supabase/client";
+import {
+  isSupabaseConfigured,
+  resolvedSupabaseAnonKey,
+  resolvedSupabaseUrl,
+  supabaseConfigSource,
+} from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -176,8 +181,16 @@ export function DashboardShell() {
                   This app needs <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>.
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Detected in this build: URL = <b>{import.meta.env.VITE_SUPABASE_URL ? "yes" : "no"}</b>, ANON KEY ={" "}
+                  Active config source: <b>{supabaseConfigSource}</b> · Active URL = <b>{resolvedSupabaseUrl ? "yes" : "no"}</b>, Active ANON KEY ={" "}
+                  <b>{resolvedSupabaseAnonKey ? "yes" : "no"}</b>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Build env detected: URL = <b>{import.meta.env.VITE_SUPABASE_URL ? "yes" : "no"}</b>, ANON KEY ={" "}
                   <b>{import.meta.env.VITE_SUPABASE_ANON_KEY ? "yes" : "no"}</b>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  If build env stays <b>no</b>, go to <b>Settings → Database connection</b>, paste your URL + anon key, then
+                  “Save & reload”.
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
