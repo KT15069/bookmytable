@@ -3,15 +3,17 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-import type { ReservationRow } from "../types";
+import type { ReservationRow, RestaurantTable } from "../types";
 import { ReservationForm } from "./ReservationForm";
 
 export function ReservationFormDialog({
+  tables,
   dayReservations,
   selectedDate,
   businessHours,
   onBook,
 }: {
+  tables: RestaurantTable[];
   dayReservations: ReservationRow[];
   selectedDate: Date;
   businessHours: { start: string; end: string };
@@ -38,6 +40,7 @@ export function ReservationFormDialog({
         </DialogHeader>
 
         <ReservationForm
+          tables={tables}
           dayReservations={dayReservations}
           selectedDate={selectedDate}
           businessHours={businessHours}

@@ -33,9 +33,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-import { RESTAURANT_TABLES } from "../constants";
+import { RESTAURANT_TABLES as FALLBACK_TABLES } from "../constants";
 import type { ReservationRow } from "../types";
 import { cancelReservation, createReservation, fetchReservations } from "../api";
+import { fetchRestaurantTables } from "../tablesApi";
 import { ReservationFormDialog } from "./ReservationFormDialog";
 import { TableGrid } from "./TableGrid";
 import { ReservationsList } from "./ReservationsList";
@@ -72,8 +73,24 @@ export function DashboardShell() {
   const windowStart = now;
   const windowEnd = addMinutes(now, 25);
 
-  const [selectedTable, setSelectedTable] = useState<string>(RESTAURANT_TABLES[0].id);
+  const { data: tablesData } = useQuery({
+    queryKey: ["restaurant_tables"],
+    queryFn: fetchRestaurantTables,
+    enabled: isSupabaseConfigured,
+  });
+
+  const tables = useMemo(() => {
+    const fromDb = tablesData?.tables ?? [];
+    return fromDb.length ? fromDb : FALLBACK_TABLES;
+  }, [tablesData]);
+
+  const [selectedTable, setSelectedTable] = useState<string>(() => FALLBACK_TABLES[0]?.id ?? "1");
   const [tableDialogOpen, setTableDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (!tables.length) return;
+    if (!tables.some((t) => t.id === selectedTable)) setSelectedTable(tables[0].id);
+  }, [tables, selectedTable]);
 
   const dayRange = useMemo(() => ({ start: startOfDay(date), end: endOfDay(date) }), [date]);
 
@@ -141,10 +158,10 @@ export function DashboardShell() {
     (e.currentTarget as HTMLElement).style.setProperty("--my", `${my}%`);
   }
 
-  const activeTable = useMemo(
-    () => RESTAURANT_TABLES.find((t) => t.id === selectedTable) ?? RESTAURANT_TABLES[0],
-    [selectedTable],
-  );
+  const activeTable = useMemo(() => {
+    if (!tables.length) return FALLBACK_TABLES[0];
+    return tables.find((t) => t.id === selectedTable) ?? tables[0];
+  }, [selectedTable, tables]);
 
   const activeAndUpcomingForSelected = useMemo(() => {
     const nowTs = now.getTime();
@@ -185,6 +202,7 @@ export function DashboardShell() {
               </div>
 
               <ReservationFormDialog
+                tables={tables}
                 dayReservations={dayReservations}
                 selectedDate={date}
                 businessHours={settings.businessHours}
@@ -252,7 +270,7 @@ export function DashboardShell() {
               </CardHeader>
               <CardContent className="grid gap-3">
                 <TableGrid
-                  tables={RESTAURANT_TABLES}
+                  tables={tables}
                   reservations={dayReservations}
                   windowStart={windowStart}
                   windowEnd={windowEnd}
@@ -277,6 +295,7 @@ export function DashboardShell() {
               </CardHeader>
               <CardContent className="p-6">
                 <ReservationForm
+                  tables={tables}
                   dayReservations={dayReservations}
                   selectedDate={date}
                   businessHours={settings.businessHours}
