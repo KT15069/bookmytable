@@ -74,7 +74,7 @@ export function TableGrid({
             onClick={() => onSelectTable(t.id)}
             className={cn(
               "group text-left",
-              "rounded-2xl border-2 p-3 shadow-card transition-[transform,box-shadow]",
+              "h-36 rounded-2xl border-2 p-3 shadow-card transition-[transform,box-shadow]",
               "hover:-translate-y-0.5 hover:shadow-soft",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               statusStyles,
@@ -96,13 +96,13 @@ export function TableGrid({
                 </div>
               </div>
 
-              {status.kind === "booked" ? (
-                <div className="mt-2.5 rounded-xl bg-background/70 p-2.5">
+              <div className="mt-2.5 min-h-[44px] rounded-xl bg-background/70 p-2.5">
+                {status.kind === "booked" ? (
                   <div className="text-sm font-medium text-foreground">{status.active.name}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{status.active.email}</div>
-                  <div className="text-xs text-muted-foreground">{status.active.phone}</div>
-                </div>
-              ) : null}
+                ) : (
+                  <div className="text-sm font-medium text-foreground opacity-0 select-none">Placeholder</div>
+                )}
+              </div>
             </div>
           </button>
         );
