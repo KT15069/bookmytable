@@ -25,6 +25,13 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import { RESTAURANT_TABLES } from "../constants";
 import type { ReservationRow } from "../types";
@@ -37,6 +44,7 @@ import { loadSettings, saveSettings, SettingsTab, type SettingsState } from "./S
 import { ReservationForm } from "./ReservationForm";
 import { ReservationsRangeList } from "./ReservationsRangeList";
 import { AIAssistantTab } from "./AIAssistantTab";
+import { DayBookingsList } from "./DayBookingsList";
 
 export function DashboardShell() {
   const { toast } = useToast();
@@ -65,6 +73,7 @@ export function DashboardShell() {
   const windowEnd = addMinutes(now, 25);
 
   const [selectedTable, setSelectedTable] = useState<string>(RESTAURANT_TABLES[0].id);
+  const [tableDialogOpen, setTableDialogOpen] = useState(false);
 
   const dayRange = useMemo(() => ({ start: startOfDay(date), end: endOfDay(date) }), [date]);
 
@@ -130,6 +139,30 @@ export function DashboardShell() {
     const my = ((e.clientY - r.top) / r.height) * 100;
     (e.currentTarget as HTMLElement).style.setProperty("--mx", `${mx}%`);
     (e.currentTarget as HTMLElement).style.setProperty("--my", `${my}%`);
+  }
+
+  const activeTable = useMemo(
+    () => RESTAURANT_TABLES.find((t) => t.id === selectedTable) ?? RESTAURANT_TABLES[0],
+    [selectedTable],
+  );
+
+  const activeAndUpcomingForSelected = useMemo(() => {
+    const nowTs = now.getTime();
+    return dayReservations
+      .filter((r) => r.status === "booked" && r.table_id === selectedTable)
+      .filter((r) => {
+        const start = new Date(r.start_at).getTime();
+        const end = new Date(r.end_at).getTime();
+        const isActive = nowTs >= start && nowTs < end;
+        const isUpcoming = start >= nowTs;
+        return isActive || isUpcoming;
+      })
+      .sort((a, b) => +new Date(a.start_at) - +new Date(b.start_at));
+  }, [dayReservations, now, selectedTable]);
+
+  function handleSelectTable(tableId: string) {
+    setSelectedTable(tableId);
+    setTableDialogOpen(true);
   }
 
   return (
@@ -211,43 +244,29 @@ export function DashboardShell() {
             <TabsTrigger value="settings" className="rounded-full px-5">Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="tables" className="mt-4 grid gap-4 lg:grid-cols-[1fr,380px]">
+          <TabsContent value="tables" className="mt-4 grid gap-4 lg:grid-cols-[5fr,3fr]">
             <Card className="shadow-card">
               <CardHeader className="flex flex-row items-center justify-between gap-3">
                 <CardTitle>Table status today</CardTitle>
                 <div className="text-sm text-muted-foreground">{format(now, "EEEE, dd LLL · HH:mm")}</div>
               </CardHeader>
-              <CardContent className="grid gap-4">
+              <CardContent className="grid gap-3">
                 <TableGrid
                   tables={RESTAURANT_TABLES}
                   reservations={dayReservations}
                   windowStart={windowStart}
                   windowEnd={windowEnd}
-                  onSelectTable={setSelectedTable}
+                  onSelectTable={handleSelectTable}
                 />
 
                 <div className="text-xs text-muted-foreground">
-                  Colors: red = occupied now, yellow = booked within 25 min, green = free now.
+                  Border colors: red = occupied now, yellow = upcoming, green = free.
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle>Quick stats</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                <p>
-                  Use this view during service to quickly see which tables are free, currently seated, or about to turn.
-                </p>
-                <p className="mt-4">
-                  Combine this with the Reservations and Visualization tabs to coordinate walk-ins and manage peak hours.
-                </p>
-              </CardContent>
-            </Card>
-
-            <div className="lg:col-span-2">
-              <ReservationsList tableId={selectedTable} reservations={dayReservations} onCancel={handleCancel} />
+            <div className="lg:sticky lg:top-6">
+              <DayBookingsList reservations={dayReservations} onCancel={handleCancel} />
             </div>
           </TabsContent>
 
@@ -326,6 +345,19 @@ export function DashboardShell() {
             />
           </TabsContent>
         </Tabs>
+
+        <Dialog open={tableDialogOpen} onOpenChange={setTableDialogOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>{activeTable.label}</DialogTitle>
+              <DialogDescription>Ongoing + upcoming reservations for today.</DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-4">
+              <ReservationsList tableId={activeTable.id} reservations={activeAndUpcomingForSelected} onCancel={handleCancel} />
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
 
       <footer className="border-t border-border/70">

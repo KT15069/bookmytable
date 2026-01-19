@@ -49,23 +49,23 @@ export function TableGrid({
   onSelectTable: (tableId: string) => void;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
       {tables.map((t) => {
         const status = statusForNow(reservations, t.id, windowStart, windowEnd);
 
         const statusStyles =
           status.kind === "booked"
-            ? "border-table-booked/40 bg-table-booked text-table-booked-foreground"
+            ? "border-table-booked/70 bg-table-booked/20 text-foreground"
             : status.kind === "upcoming"
-              ? "border-table-upcoming/45 bg-table-upcoming text-table-upcoming-foreground"
-              : "border-table-free/35 bg-table-free text-table-free-foreground";
+              ? "border-table-upcoming/70 bg-table-upcoming/20 text-foreground"
+              : "border-table-free/70 bg-table-free/20 text-foreground";
 
         const pillStyles =
           status.kind === "booked"
-            ? "bg-table-booked/60 text-table-booked-foreground"
+            ? "border border-table-booked/60 bg-table-booked/30 text-foreground"
             : status.kind === "upcoming"
-              ? "bg-table-upcoming/70 text-table-upcoming-foreground"
-              : "bg-table-free/65 text-table-free-foreground";
+              ? "border border-table-upcoming/60 bg-table-upcoming/30 text-foreground"
+              : "border border-table-free/60 bg-table-free/30 text-foreground";
 
         return (
           <button
@@ -74,20 +74,20 @@ export function TableGrid({
             onClick={() => onSelectTable(t.id)}
             className={cn(
               "group text-left",
-              "rounded-2xl border p-4 shadow-card transition-[transform,box-shadow]",
+              "rounded-2xl border-2 p-3 shadow-card transition-[transform,box-shadow]",
               "hover:-translate-y-0.5 hover:shadow-soft",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               statusStyles,
             )}
           >
             <div className="flex h-full flex-col">
-              <div className="font-display text-xl leading-none text-foreground">{t.label}</div>
-              <div className="mt-2 text-sm text-muted-foreground">
+              <div className="font-display text-lg leading-none text-foreground">{t.label}</div>
+              <div className="mt-1.5 text-xs text-muted-foreground">
                 {t.minGuests === t.maxGuests ? `1–${t.maxGuests} guests` : `${t.minGuests}–${t.maxGuests} guests`}
               </div>
 
-              <div className="mt-auto pt-4">
-                <div className={cn("inline-flex items-center rounded-full px-3 py-1 text-xs font-medium", pillStyles)}>
+              <div className="mt-auto pt-3">
+                <div className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium", pillStyles)}>
                   {status.kind === "booked"
                     ? "Occupied"
                     : status.kind === "upcoming"
@@ -97,7 +97,7 @@ export function TableGrid({
               </div>
 
               {status.kind === "booked" ? (
-                <div className="mt-3 rounded-xl bg-background/70 p-3">
+                <div className="mt-2.5 rounded-xl bg-background/70 p-2.5">
                   <div className="text-sm font-medium text-foreground">{status.active.name}</div>
                   <div className="mt-1 text-xs text-muted-foreground">{status.active.email}</div>
                   <div className="text-xs text-muted-foreground">{status.active.phone}</div>
