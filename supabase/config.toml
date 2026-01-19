@@ -1,1 +1,4 @@
 project_id = "ecellnikwwjosdvlqsvu"
+
+[functions.manage-restaurant-tables]
+verify_jwt = false

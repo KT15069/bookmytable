@@ -10,9 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 
-import { DEFAULT_BUSINESS_HOURS, MAX_BOOKING_MINUTES, MIN_BOOKING_MINUTES, RESTAURANT_TABLES } from "../constants";
+import { DEFAULT_BUSINESS_HOURS, MAX_BOOKING_MINUTES, MIN_BOOKING_MINUTES } from "../constants";
 import { findAvailableTable, isDurationValid, suggestNearestSlot } from "../availability";
-import type { ReservationRow } from "../types";
+import type { ReservationRow, RestaurantTable } from "../types";
 
 const schema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -32,6 +32,7 @@ function combineDateAndTime(date: Date, time: string) {
 }
 
 export function ReservationForm({
+  tables,
   dayReservations,
   selectedDate,
   businessHours,
@@ -39,6 +40,7 @@ export function ReservationForm({
   onBook,
   onBooked,
 }: {
+  tables: RestaurantTable[];
   dayReservations: ReservationRow[];
   selectedDate: Date;
   businessHours: { start: string; end: string };
@@ -81,7 +83,7 @@ export function ReservationForm({
       return;
     }
 
-    const table = findAvailableTable(RESTAURANT_TABLES, dayReservations, values.guests, startAt, endAt);
+    const table = findAvailableTable(tables, dayReservations, values.guests, startAt, endAt);
     if (table) {
       try {
         await onBook({
@@ -114,15 +116,15 @@ export function ReservationForm({
     const businessStart = combineDateAndTime(date, businessHours.start ?? DEFAULT_BUSINESS_HOURS.start);
     const businessEnd = combineDateAndTime(date, businessHours.end ?? DEFAULT_BUSINESS_HOURS.end);
 
-    const suggestion = suggestNearestSlot(
-      RESTAURANT_TABLES,
-      dayReservations,
-      values.guests,
-      startAt,
-      endAt,
-      businessStart,
-      businessEnd,
-    );
+      const suggestion = suggestNearestSlot(
+        tables,
+        dayReservations,
+        values.guests,
+        startAt,
+        endAt,
+        businessStart,
+        businessEnd,
+      );
 
     if (suggestion) {
       const minutes = differenceInMinutes(suggestion.endAt, suggestion.startAt);
