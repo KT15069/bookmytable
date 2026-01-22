@@ -240,8 +240,7 @@ export function DashboardShell() {
                   <b>{import.meta.env.VITE_SUPABASE_ANON_KEY ? "yes" : "no"}</b>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  If build env stays <b>no</b>, go to <b>Settings → Database connection</b>, paste your URL + anon key, then
-                  “Save & reload”.
+                  If build env stays <b>no</b>, verify your Supabase env vars are configured for this app, then reload.
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
