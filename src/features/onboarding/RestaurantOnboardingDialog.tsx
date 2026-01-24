@@ -16,6 +16,23 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+async function extractEdgeFunctionErrorMessage(err: any): Promise<string | null> {
+  // supabase-js FunctionsHttpError contains a Response in `context`.
+  const res: Response | undefined = err?.context;
+  if (res && typeof (res as any).json === "function") {
+    try {
+      const body = await (res as any).json();
+      const msg = body?.error ?? body?.message;
+      if (typeof msg === "string" && msg.trim()) return msg;
+      return JSON.stringify(body);
+    } catch {
+      // ignore
+    }
+  }
+  if (typeof err?.message === "string" && err.message.trim()) return err.message;
+  return null;
+}
+
 const tableSchema = z.object({
   name: z.string().trim().min(1).max(200),
   min_occupancy: z.coerce.number().int().min(1).max(50),
@@ -88,7 +105,15 @@ export function RestaurantOnboardingDialog({
       });
 
       const { data, error } = await supabase.functions.invoke("restaurant-onboarding", { body: payload });
-      if (error) throw error;
+      if (error) {
+        const msg = await extractEdgeFunctionErrorMessage(error);
+        toast({
+          title: "Setup failed",
+          description: msg ?? "Edge Function returned a non-2xx status code",
+          variant: "destructive",
+        });
+        return;
+      }
 
       toast({ title: "Restaurant created", description: "Your dashboard is ready." });
       qc.invalidateQueries();
@@ -102,11 +127,8 @@ export function RestaurantOnboardingDialog({
         toast({ title: "Setup failed", description: msg, variant: "destructive" });
         return;
       }
-      toast({
-        title: "Setup failed",
-        description: typeof e?.message === "string" ? e.message : "Please review your inputs.",
-        variant: "destructive",
-      });
+      const msg = await extractEdgeFunctionErrorMessage(e);
+      toast({ title: "Setup failed", description: msg ?? "Please review your inputs.", variant: "destructive" });
     } finally {
       setBusy(false);
     }
