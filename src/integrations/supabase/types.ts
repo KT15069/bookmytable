@@ -23,6 +23,7 @@ export type Database = {
           id: string
           name: string
           phone: string
+          restaurant_id: string
           start_at: string
           status: string
           table_id: string
@@ -35,6 +36,7 @@ export type Database = {
           id?: string
           name: string
           phone: string
+          restaurant_id: string
           start_at: string
           status: string
           table_id: string
@@ -47,17 +49,86 @@ export type Database = {
           id?: string
           name?: string
           phone?: string
+          restaurant_id?: string
           start_at?: string
           status?: string
           table_id?: string
         }
         Relationships: []
       }
+      restaurant_locations: {
+        Row: {
+          address: string | null
+          contact_number: string | null
+          created_at: string
+          id: string
+          label: string
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          contact_number?: string | null
+          created_at?: string
+          id?: string
+          label?: string
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          contact_number?: string | null
+          created_at?: string
+          id?: string
+          label?: string
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_locations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_members: {
+        Row: {
+          created_at: string
+          id: string
+          restaurant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          restaurant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          restaurant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_members_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_tables: {
         Row: {
           capacity: number
           created_at: string
           id: string
+          restaurant_id: string
           table_number: number
           updated_at: string
         }
@@ -65,6 +136,7 @@ export type Database = {
           capacity: number
           created_at?: string
           id?: string
+          restaurant_id: string
           table_number: number
           updated_at?: string
         }
@@ -72,7 +144,50 @@ export type Database = {
           capacity?: number
           created_at?: string
           id?: string
+          restaurant_id?: string
           table_number?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      restaurants: {
+        Row: {
+          address: string | null
+          brand_logo_url: string | null
+          brand_primary_hsl: string | null
+          contact_number: string | null
+          created_at: string
+          id: string
+          name: string
+          table_admin_hash: string | null
+          table_admin_salt: string | null
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          brand_logo_url?: string | null
+          brand_primary_hsl?: string | null
+          contact_number?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          table_admin_hash?: string | null
+          table_admin_salt?: string | null
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          brand_logo_url?: string | null
+          brand_primary_hsl?: string | null
+          contact_number?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          table_admin_hash?: string | null
+          table_admin_salt?: string | null
+          timezone?: string
           updated_at?: string
         }
         Relationships: []
@@ -91,6 +206,10 @@ export type Database = {
           p_start_at: string
         }
         Returns: Json
+      }
+      is_restaurant_member: {
+        Args: { _restaurant_id: string }
+        Returns: boolean
       }
     }
     Enums: {
