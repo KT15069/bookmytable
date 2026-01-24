@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseUntyped as supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import type { RestaurantTable } from "./types";
 
