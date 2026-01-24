@@ -1,7 +1,18 @@
 import { Link } from "react-router-dom";
-import { BarChart3, CalendarDays, Clock, Hotel, Sparkles, UsersRound } from "lucide-react";
+import {
+  BarChart3,
+  CalendarDays,
+  ChevronRight,
+  Clock,
+  Hotel,
+  LineChart,
+  Sparkles,
+  UsersRound,
+} from "lucide-react";
 
-import heroImage from "@/assets/bookmytable-hero.png";
+import heroImage from "@/assets/landing-hero.jpg";
+import analyticsImage from "@/assets/landing-analytics.jpg";
+import floorplanImage from "@/assets/landing-floorplan.jpg";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,24 +49,20 @@ export default function Landing() {
         <section className="relative overflow-hidden">
           <div className="absolute inset-0 -z-10">
             <div className="absolute inset-0 bg-hero" />
-            <div className="absolute inset-0 opacity-20 [mask-image:radial-gradient(60%_55%_at_50%_20%,black,transparent)]">
-              <img
-                src={heroImage}
-                alt="Restaurant table setting"
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
+            <div className="absolute inset-0 opacity-25">
+              <img src={heroImage} alt="Restaurant table with booking calendar" className="h-full w-full object-cover" loading="lazy" />
             </div>
+            <div className="absolute inset-0 bg-background/70" />
           </div>
 
-          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-[1.1fr_0.9fr] md:items-center md:py-20">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-[1fr_1fr] md:items-center md:py-20">
             <div className="space-y-6">
               <Badge className="rounded-full px-4 py-1 text-sm" variant="secondary">
                 Built for restaurants, hotels & multi-location teams
               </Badge>
 
               <h1 className="font-display text-4xl tracking-tight md:text-6xl">
-                Turn every booking into a smoother service—and smarter decisions.
+                Bookings, tables, and insights—built for busy service.
               </h1>
               <p className="max-w-xl text-base text-muted-foreground md:text-lg">
                 Bookmytable helps you manage tables, prevent clashes, and analyze demand by season, month, week, day, and
@@ -103,39 +110,72 @@ export default function Landing() {
             </div>
 
             <div className="relative">
-              <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-gradient-to-b from-primary/20 to-transparent blur-2xl" />
-              <Card className="overflow-hidden rounded-[2rem] shadow-card">
-                <div className="aspect-[4/3]">
-                  <img
-                    src={heroImage}
-                    alt="A welcoming dining setup with plates and cutlery"
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
+              <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-gradient-to-b from-primary/25 to-transparent blur-2xl" />
+              <div className="grid gap-4">
+                <Card className="overflow-hidden rounded-[2rem] shadow-card">
+                  <div className="aspect-[16/10]">
+                    <img
+                      src={analyticsImage}
+                      alt="Booking analytics dashboard with charts"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                </Card>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Card className="shadow-card">
+                    <CardContent className="flex items-center justify-between gap-3 p-5">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Peak hour</div>
+                        <div className="mt-1 font-display text-2xl tracking-tight">19:00</div>
+                      </div>
+                      <LineChart className="h-5 w-5 text-muted-foreground" />
+                    </CardContent>
+                  </Card>
+                  <Card className="shadow-card">
+                    <CardContent className="flex items-center justify-between gap-3 p-5">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Busiest day</div>
+                        <div className="mt-1 font-display text-2xl tracking-tight">Friday</div>
+                      </div>
+                      <CalendarDays className="h-5 w-5 text-muted-foreground" />
+                    </CardContent>
+                  </Card>
                 </div>
-                <CardContent className="grid gap-4 p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="font-display text-xl tracking-tight">Today’s demand</div>
-                    <Badge className="rounded-full" variant="secondary">
-                      Live view
-                    </Badge>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl border bg-muted/40 p-4">
-                      <div className="text-xs text-muted-foreground">Most booked day</div>
-                      <div className="mt-1 font-display text-2xl tracking-tight">Friday</div>
-                    </div>
-                    <div className="rounded-2xl border bg-muted/40 p-4">
-                      <div className="text-xs text-muted-foreground">Peak hour</div>
-                      <div className="mt-1 font-display text-2xl tracking-tight">19:00</div>
-                    </div>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Your real dashboard calculates these from actual bookings.
-                  </div>
-                </CardContent>
-              </Card>
+              </div>
             </div>
+          </div>
+        </section>
+
+        {/* Visual proof: table management */}
+        <section className="mx-auto max-w-6xl px-4 py-14 md:py-20">
+          <div className="grid gap-10 md:grid-cols-2 md:items-center">
+            <div className="space-y-4">
+              <Badge className="rounded-full" variant="secondary">
+                Table control
+              </Badge>
+              <h2 className="font-display text-3xl tracking-tight md:text-4xl">
+                A clearer floor plan = fewer mistakes in service.
+              </h2>
+              <p className="text-muted-foreground">
+                See what’s free, what’s booked, and what’s coming soon—then drill into a table to view today’s bookings.
+              </p>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link to="/app">
+                  Explore the dashboard <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+            <Card className="overflow-hidden rounded-[2rem] shadow-card">
+              <div className="aspect-[16/10]">
+                <img
+                  src={floorplanImage}
+                  alt="Restaurant floor plan showing table layout"
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            </Card>
           </div>
         </section>
 
@@ -201,6 +241,49 @@ export default function Landing() {
                 not spreadsheets.
               </CardContent>
             </Card>
+          </div>
+        </section>
+
+        {/* Social proof */}
+        <section className="mx-auto max-w-6xl px-4 pb-10">
+          <div className="grid gap-6 rounded-[2rem] border bg-muted/30 p-6 shadow-card md:grid-cols-3 md:p-10">
+            <div className="md:col-span-1">
+              <h2 className="font-display text-3xl tracking-tight">Teams love the clarity.</h2>
+              <p className="mt-2 text-muted-foreground">
+                Faster handovers, fewer double bookings, and decisions backed by real demand patterns.
+              </p>
+            </div>
+            <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
+              <Card className="shadow-card">
+                <CardContent className="p-6">
+                  <p className="text-sm text-muted-foreground">
+                    “We finally know our true peak hours by day—and staffing is so much easier.”
+                  </p>
+                  <div className="mt-4 text-sm font-medium">Operations Manager</div>
+                  <div className="text-xs text-muted-foreground">Boutique Hotel Dining</div>
+                </CardContent>
+              </Card>
+              <Card className="shadow-card">
+                <CardContent className="p-6">
+                  <p className="text-sm text-muted-foreground">
+                    “Table status is instantly readable. We’ve reduced booking mistakes during rush.”
+                  </p>
+                  <div className="mt-4 text-sm font-medium">Restaurant Owner</div>
+                  <div className="text-xs text-muted-foreground">80-seat Restaurant</div>
+                </CardContent>
+              </Card>
+              <Card className="shadow-card md:col-span-2">
+                <CardContent className="flex flex-col gap-3 p-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Multi-location ready</div>
+                    <div className="font-display text-2xl tracking-tight">Standardize bookings across venues</div>
+                  </div>
+                  <Button asChild variant="hero" className="rounded-full">
+                    <Link to="/auth">Start free</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </section>
 
