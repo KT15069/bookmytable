@@ -4,31 +4,37 @@ import type { RestaurantTable } from "./types";
 
 export type RestaurantTableRow = {
   id: string;
+  restaurant_id: string;
   table_number: number;
   capacity: number;
+  name: string;
+  min_occupancy: number;
+  max_occupancy: number;
 };
 
 const rowSchema = z.object({
   id: z.string().uuid(),
+  restaurant_id: z.string().uuid(),
   table_number: z.number().int().positive(),
   capacity: z.number().int().min(1).max(50),
+  name: z.string().min(1).max(200),
+  min_occupancy: z.number().int().min(1).max(50),
+  max_occupancy: z.number().int().min(1).max(50),
 });
 
 function toModel(row: RestaurantTableRow): RestaurantTable {
-  // Keep compatibility with existing reservation logic (table_id is TEXT).
-  // We map table_number -> string ID.
   return {
-    id: String(row.table_number),
-    label: String(row.table_number),
-    minGuests: 1,
-    maxGuests: row.capacity,
+    id: row.id,
+    label: row.name,
+    minGuests: row.min_occupancy,
+    maxGuests: row.max_occupancy,
   };
 }
 
 export async function fetchRestaurantTables(): Promise<{ rows: RestaurantTableRow[]; tables: RestaurantTable[] }> {
   const { data, error } = await supabase
     .from("restaurant_tables")
-    .select("id, table_number, capacity")
+    .select("id, restaurant_id, table_number, capacity, name, min_occupancy, max_occupancy")
     .order("table_number", { ascending: true });
 
   if (error) throw error;
@@ -36,8 +42,12 @@ export async function fetchRestaurantTables(): Promise<{ rows: RestaurantTableRo
   const rows = (data ?? [])
     .map((r: any) => ({
       id: r.id,
+      restaurant_id: r.restaurant_id,
       table_number: Number(r.table_number),
       capacity: Number(r.capacity),
+      name: String(r.name),
+      min_occupancy: Number(r.min_occupancy),
+      max_occupancy: Number(r.max_occupancy),
     }))
     .filter((r) => rowSchema.safeParse(r).success);
 

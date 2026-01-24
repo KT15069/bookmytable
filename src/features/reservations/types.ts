@@ -9,6 +9,7 @@ export type ReservationStatus = "booked" | "cancelled";
 
 export type ReservationRow = {
   id: string;
+  restaurant_id: string;
   table_id: string;
   guest_count: number;
   start_at: string;

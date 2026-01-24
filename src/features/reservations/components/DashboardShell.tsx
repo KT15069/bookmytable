@@ -12,12 +12,8 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 
-import {
-  isSupabaseConfigured,
-  resolvedSupabaseAnonKey,
-  resolvedSupabaseUrl,
-  supabaseConfigSource,
-} from "@/integrations/supabase/client";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { RestaurantOnboardingDialog } from "@/features/onboarding/RestaurantOnboardingDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -51,6 +47,7 @@ export function DashboardShell() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { theme, setTheme } = useTheme();
+  const { signOut } = useAuth();
 
   const [settings, setSettings] = useState<SettingsState>(() => ({ businessHours: { start: "08:00", end: "23:00" } }));
 
@@ -76,7 +73,6 @@ export function DashboardShell() {
   const { data: tablesData } = useQuery({
     queryKey: ["restaurant_tables"],
     queryFn: fetchRestaurantTables,
-    enabled: isSupabaseConfigured,
   });
 
   const tables = useMemo(() => {
@@ -84,8 +80,13 @@ export function DashboardShell() {
     return fromDb.length ? fromDb : FALLBACK_TABLES;
   }, [tablesData]);
 
+  const activeRestaurantId = useMemo(() => {
+    return tablesData?.rows?.[0]?.restaurant_id ?? "";
+  }, [tablesData]);
+
   const [selectedTable, setSelectedTable] = useState<string>(() => FALLBACK_TABLES[0]?.id ?? "1");
   const [tableDialogOpen, setTableDialogOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   useEffect(() => {
     if (!tables.length) return;
@@ -97,7 +98,7 @@ export function DashboardShell() {
   const { data: dayReservations = [], isLoading: dayLoading } = useQuery({
     queryKey: ["reservations", "day", format(date, "yyyy-MM-dd")],
     queryFn: () => fetchReservations(dayRange.start, dayRange.end),
-    enabled: isSupabaseConfigured,
+    enabled: Boolean(activeRestaurantId),
   });
 
   const [analyticsRange, setAnalyticsRange] = useState<"today" | "week" | "30d" | "6mo">("week");
@@ -112,7 +113,7 @@ export function DashboardShell() {
   const { data: analyticsReservations = [], isLoading: analyticsLoading } = useQuery({
     queryKey: ["reservations", "analytics", analyticsRange],
     queryFn: () => fetchReservations(analyticsDates.start, analyticsDates.end),
-    enabled: isSupabaseConfigured,
+    enabled: Boolean(activeRestaurantId),
   });
 
   async function handleCancel(id: string) {
@@ -130,13 +131,13 @@ export function DashboardShell() {
     email: string;
     phone: string;
   }) {
-    if (!isSupabaseConfigured) {
-      throw new Error(
-        "Database is not connected yet. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then refresh the page.",
-      );
+    if (!activeRestaurantId) {
+      setOnboardingOpen(true);
+      throw new Error("Please finish restaurant setup first.");
     }
 
     await createReservation({
+      restaurant_id: activeRestaurantId,
       table_id: args.tableId,
       guest_count: args.guestCount,
       start_at: args.startAt.toISOString(),
@@ -208,6 +209,9 @@ export function DashboardShell() {
                 businessHours={settings.businessHours}
                 onBook={handleBook}
               />
+              <Button variant="outline" onClick={() => signOut()}>
+                Sign out
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => {
@@ -223,30 +227,15 @@ export function DashboardShell() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-10 pt-6">
-        {!isSupabaseConfigured ? (
+        {!activeRestaurantId ? (
           <Alert className="shadow-card">
-            <AlertTitle>Database not connected</AlertTitle>
+            <AlertTitle>Finish setup</AlertTitle>
             <AlertDescription>
-              <div className="space-y-2">
-                <div>
-                  This app needs <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>.
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Active config source: <b>{supabaseConfigSource}</b> · Active URL = <b>{resolvedSupabaseUrl ? "yes" : "no"}</b>, Active ANON KEY ={" "}
-                  <b>{resolvedSupabaseAnonKey ? "yes" : "no"}</b>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Build env detected: URL = <b>{import.meta.env.VITE_SUPABASE_URL ? "yes" : "no"}</b>, ANON KEY ={" "}
-                  <b>{import.meta.env.VITE_SUPABASE_ANON_KEY ? "yes" : "no"}</b>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  If build env stays <b>no</b>, verify your Supabase env vars are configured for this app, then reload.
-                </div>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-                    Reload
-                  </Button>
-                </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm text-muted-foreground">Create your restaurant profile and initial tables to start managing bookings.</div>
+                <Button variant="hero" className="rounded-full" onClick={() => setOnboardingOpen(true)}>
+                  Set up restaurant
+                </Button>
               </div>
             </AlertDescription>
           </Alert>
@@ -383,6 +372,8 @@ export function DashboardShell() {
           Tip: Enable staff login + strict database policies before using in production.
         </div>
       </footer>
+
+      <RestaurantOnboardingDialog open={onboardingOpen} onOpenChange={setOnboardingOpen} />
     </div>
   );
 }

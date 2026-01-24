@@ -6,7 +6,7 @@ const TABLE = "reservations";
 export async function fetchReservations(rangeStart: Date, rangeEnd: Date) {
   const { data, error } = await supabase
     .from(TABLE)
-    .select("id, table_id, guest_count, start_at, end_at, name, email, phone, status, created_at")
+    .select("id, restaurant_id, table_id, guest_count, start_at, end_at, name, email, phone, status, created_at")
     .eq("status", "booked")
     .lt("start_at", rangeEnd.toISOString())
     .gt("end_at", rangeStart.toISOString())
@@ -19,7 +19,8 @@ export async function fetchReservations(rangeStart: Date, rangeEnd: Date) {
 export async function createReservation(row: Omit<ReservationRow, "id">) {
   const { data, error } = await supabase
     .from(TABLE)
-    .insert(row)
+    // Supabase TS types for insert are array-based
+    .insert([row])
     .select("id")
     .single();
 

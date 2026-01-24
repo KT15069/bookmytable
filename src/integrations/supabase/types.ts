@@ -128,6 +128,9 @@ export type Database = {
           capacity: number
           created_at: string
           id: string
+          max_occupancy: number
+          min_occupancy: number
+          name: string
           restaurant_id: string
           table_number: number
           updated_at: string
@@ -136,6 +139,9 @@ export type Database = {
           capacity: number
           created_at?: string
           id?: string
+          max_occupancy: number
+          min_occupancy: number
+          name: string
           restaurant_id: string
           table_number: number
           updated_at?: string
@@ -144,6 +150,9 @@ export type Database = {
           capacity?: number
           created_at?: string
           id?: string
+          max_occupancy?: number
+          min_occupancy?: number
+          name?: string
           restaurant_id?: string
           table_number?: number
           updated_at?: string

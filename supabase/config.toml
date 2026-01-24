@@ -2,3 +2,6 @@ project_id = "ecellnikwwjosdvlqsvu"
 
 [functions.manage-restaurant-tables]
 verify_jwt = false
+
+[functions.restaurant-onboarding]
+verify_jwt = false
