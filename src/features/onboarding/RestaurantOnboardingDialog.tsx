@@ -96,6 +96,12 @@ export function RestaurantOnboardingDialog({
       onDone?.();
       return data;
     } catch (e: any) {
+      // Zod errors are arrays of issues; show a friendly single-line message.
+      if (e instanceof z.ZodError) {
+        const msg = e.issues?.[0]?.message ?? "Please review your inputs.";
+        toast({ title: "Setup failed", description: msg, variant: "destructive" });
+        return;
+      }
       toast({
         title: "Setup failed",
         description: typeof e?.message === "string" ? e.message : "Please review your inputs.",
@@ -104,6 +110,11 @@ export function RestaurantOnboardingDialog({
     } finally {
       setBusy(false);
     }
+  }
+
+  function clampOccupancy(n: number) {
+    if (!Number.isFinite(n)) return 1;
+    return Math.max(1, Math.min(50, Math.trunc(n)));
   }
 
   return (
@@ -177,8 +188,16 @@ export function RestaurantOnboardingDialog({
                             value={t.min_occupancy}
                             onChange={(e) =>
                               setTables((prev) => {
+                                // Prevent empty string -> 0 and keep Min/Max consistent.
+                                if (e.target.value === "") return prev;
                                 const next = [...prev];
-                                next[idx] = { ...next[idx], min_occupancy: Number(e.target.value) };
+                                const min = clampOccupancy(Number(e.target.value));
+                                const currentMax = clampOccupancy(Number(next[idx]?.max_occupancy ?? 4));
+                                next[idx] = {
+                                  ...next[idx],
+                                  min_occupancy: min,
+                                  max_occupancy: Math.max(currentMax, min),
+                                };
                                 return next;
                               })
                             }
@@ -194,8 +213,16 @@ export function RestaurantOnboardingDialog({
                             value={t.max_occupancy}
                             onChange={(e) =>
                               setTables((prev) => {
+                                // Prevent empty string -> 0 and keep Min/Max consistent.
+                                if (e.target.value === "") return prev;
                                 const next = [...prev];
-                                next[idx] = { ...next[idx], max_occupancy: Number(e.target.value) };
+                                const max = clampOccupancy(Number(e.target.value));
+                                const currentMin = clampOccupancy(Number(next[idx]?.min_occupancy ?? 1));
+                                next[idx] = {
+                                  ...next[idx],
+                                  max_occupancy: max,
+                                  min_occupancy: Math.min(currentMin, max),
+                                };
                                 return next;
                               })
                             }

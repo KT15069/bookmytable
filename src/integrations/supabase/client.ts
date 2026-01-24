@@ -73,3 +73,14 @@ export const supabase = createClient<Database>(resolvedSupabaseUrl!, resolvedSup
     autoRefreshToken: true,
   },
 });
+
+// NOTE: The generated `Database` types file can lag behind schema changes in Lovable.
+// For tables not yet present in `src/integrations/supabase/types.ts`, use this untyped
+// client to avoid TS `never` issues while keeping runtime behavior identical.
+export const supabaseUntyped = createClient(resolvedSupabaseUrl!, resolvedSupabaseAnonKey!, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});

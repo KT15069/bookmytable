@@ -14,48 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      reservations: {
-        Row: {
-          created_at: string
-          email: string
-          end_at: string
-          guest_count: number
-          id: string
-          name: string
-          phone: string
-          restaurant_id: string
-          start_at: string
-          status: string
-          table_id: string
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          end_at: string
-          guest_count: number
-          id?: string
-          name: string
-          phone: string
-          restaurant_id: string
-          start_at: string
-          status: string
-          table_id: string
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          end_at?: string
-          guest_count?: number
-          id?: string
-          name?: string
-          phone?: string
-          restaurant_id?: string
-          start_at?: string
-          status?: string
-          table_id?: string
-        }
-        Relationships: []
-      }
       restaurant_locations: {
         Row: {
           address: string | null
@@ -122,42 +80,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      restaurant_tables: {
-        Row: {
-          capacity: number
-          created_at: string
-          id: string
-          max_occupancy: number
-          min_occupancy: number
-          name: string
-          restaurant_id: string
-          table_number: number
-          updated_at: string
-        }
-        Insert: {
-          capacity: number
-          created_at?: string
-          id?: string
-          max_occupancy: number
-          min_occupancy: number
-          name: string
-          restaurant_id: string
-          table_number: number
-          updated_at?: string
-        }
-        Update: {
-          capacity?: number
-          created_at?: string
-          id?: string
-          max_occupancy?: number
-          min_occupancy?: number
-          name?: string
-          restaurant_id?: string
-          table_number?: number
-          updated_at?: string
-        }
-        Relationships: []
       }
       restaurants: {
         Row: {
