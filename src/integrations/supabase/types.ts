@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      reservations: {
+        Row: {
+          created_at: string
+          email: string | null
+          end_at: string
+          guest_count: number
+          id: string
+          name: string | null
+          phone: string | null
+          restaurant_id: string
+          start_at: string
+          status: string
+          table_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          end_at: string
+          guest_count: number
+          id?: string
+          name?: string | null
+          phone?: string | null
+          restaurant_id: string
+          start_at: string
+          status?: string
+          table_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          end_at?: string
+          guest_count?: number
+          id?: string
+          name?: string | null
+          phone?: string | null
+          restaurant_id?: string
+          start_at?: string
+          status?: string
+          table_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_locations: {
         Row: {
           address: string | null
@@ -74,6 +134,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "restaurant_members_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_tables: {
+        Row: {
+          capacity: number
+          created_at: string
+          id: string
+          max_occupancy: number
+          min_occupancy: number
+          name: string
+          restaurant_id: string
+          table_number: number
+          updated_at: string
+        }
+        Insert: {
+          capacity: number
+          created_at?: string
+          id?: string
+          max_occupancy: number
+          min_occupancy?: number
+          name: string
+          restaurant_id: string
+          table_number: number
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          id?: string
+          max_occupancy?: number
+          min_occupancy?: number
+          name?: string
+          restaurant_id?: string
+          table_number?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_tables_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
