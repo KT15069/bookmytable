@@ -108,7 +108,10 @@ Deno.serve(async (req) => {
       ])
       .select("id")
       .single();
-    if (rErr || !restaurant) return json(400, { error: rErr?.message ?? "Could not create restaurant" });
+    if (rErr || !restaurant) {
+      console.error("restaurant-onboarding: restaurants insert failed", { rErr });
+      return json(400, { error: rErr?.message ?? "Could not create restaurant" });
+    }
 
     const restaurantId = restaurant.id as string;
 
@@ -118,7 +121,10 @@ Deno.serve(async (req) => {
         user_id: userId,
       },
     ]);
-    if (mErr) return json(400, { error: mErr.message });
+    if (mErr) {
+      console.error("restaurant-onboarding: restaurant_members insert failed", { mErr, userId, restaurantId });
+      return json(400, { error: mErr.message });
+    }
 
     await admin.from("restaurant_locations").insert([
       {
@@ -139,7 +145,14 @@ Deno.serve(async (req) => {
     }));
 
     const { error: tErr } = await admin.from("restaurant_tables").insert(rows);
-    if (tErr) return json(400, { error: tErr.message });
+    if (tErr) {
+      console.error("restaurant-onboarding: restaurant_tables insert failed", {
+        tErr,
+        restaurantId,
+        rowCount: rows.length,
+      });
+      return json(400, { error: tErr.message });
+    }
 
     return json(200, { restaurant_id: restaurantId });
   } catch (e) {
