@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import Landing from "./pages/Landing";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { RequireAuth } from "@/features/auth/RequireAuth";
 
@@ -22,8 +23,9 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<Landing />} />
               <Route
-                path="/"
+                path="/app"
                 element={
                   <RequireAuth>
                     <Index />

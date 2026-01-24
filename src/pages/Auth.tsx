@@ -21,7 +21,7 @@ export default function Auth() {
   const loc = useLocation() as any;
   const { session } = useAuth();
 
-  const from = useMemo(() => (typeof loc?.state?.from === "string" ? loc.state.from : "/"), [loc?.state?.from]);
+  const from = useMemo(() => (typeof loc?.state?.from === "string" ? loc.state.from : "/app"), [loc?.state?.from]);
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -57,7 +57,7 @@ export default function Auth() {
         return;
       }
 
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/app`;
       const { error } = await supabase.auth.signUp({
         email: e,
         password: p,
