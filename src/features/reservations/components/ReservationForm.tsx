@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DEFAULT_BUSINESS_HOURS, MAX_BOOKING_MINUTES, MIN_BOOKING_MINUTES } from "../constants";
 import { findAvailableTable, isDurationValid, suggestNearestSlot } from "../availability";
 import type { ReservationRow, RestaurantTable } from "../types";
+import { getBusinessHoursForDate, type SettingsState } from "./SettingsTab";
 
 const schema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -35,7 +36,7 @@ export function ReservationForm({
   tables,
   dayReservations,
   selectedDate,
-  businessHours,
+  settings,
   submitLabel = "Check availability & book",
   onBook,
   onBooked,
@@ -43,7 +44,7 @@ export function ReservationForm({
   tables: RestaurantTable[];
   dayReservations: ReservationRow[];
   selectedDate: Date;
-  businessHours: { start: string; end: string };
+  settings: SettingsState;
   submitLabel?: string;
   onBook: (args: {
     tableId: string;
@@ -77,6 +78,19 @@ export function ReservationForm({
     const date = new Date(values.date + "T00:00:00");
     const startAt = combineDateAndTime(date, values.start);
     const endAt = combineDateAndTime(date, values.end);
+
+    const businessHours = getBusinessHoursForDate(settings, date);
+    const businessStart = combineDateAndTime(date, businessHours.start ?? DEFAULT_BUSINESS_HOURS.start);
+    const businessEnd = combineDateAndTime(date, businessHours.end ?? DEFAULT_BUSINESS_HOURS.end);
+
+    if (startAt < businessStart || endAt > businessEnd) {
+      toast({
+        title: "Outside business hours",
+        description: `Allowed on this day: ${format(businessStart, "HH:mm")}–${format(businessEnd, "HH:mm")}.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (!isDurationValid(startAt, endAt)) {
       toast({ title: "Invalid duration", description: hint });
@@ -112,9 +126,6 @@ export function ReservationForm({
       }
       return;
     }
-
-    const businessStart = combineDateAndTime(date, businessHours.start ?? DEFAULT_BUSINESS_HOURS.start);
-    const businessEnd = combineDateAndTime(date, businessHours.end ?? DEFAULT_BUSINESS_HOURS.end);
 
       const suggestion = suggestNearestSlot(
         tables,
