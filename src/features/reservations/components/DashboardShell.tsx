@@ -49,7 +49,7 @@ export function DashboardShell() {
   const { theme, setTheme } = useTheme();
   const { signOut } = useAuth();
 
-  const [settings, setSettings] = useState<SettingsState>(() => ({ businessHours: { start: "08:00", end: "23:00" } }));
+  const [settings, setSettings] = useState<SettingsState>(() => loadSettings());
 
   useEffect(() => {
     const s = loadSettings();
@@ -206,7 +206,7 @@ export function DashboardShell() {
                 tables={tables}
                 dayReservations={dayReservations}
                 selectedDate={date}
-                businessHours={settings.businessHours}
+                settings={settings}
                 onBook={handleBook}
               />
               <Button variant="outline" onClick={() => signOut()}>
@@ -286,7 +286,7 @@ export function DashboardShell() {
                   tables={tables}
                   dayReservations={dayReservations}
                   selectedDate={date}
-                  businessHours={settings.businessHours}
+                  settings={settings}
                   onBook={handleBook}
                 />
               </CardContent>

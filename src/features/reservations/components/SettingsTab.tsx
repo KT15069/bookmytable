@@ -6,6 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   isSupabaseConfigured,
@@ -21,23 +29,68 @@ import {
 const SETTINGS_KEY = "restaurant.settings.v1";
 const TABLE_ADMIN_KEY = "restaurant.tables.adminPasscode.v1";
 
+export type DailyBusinessHours = { start: string; end: string };
+
 export type SettingsState = {
-  businessHours: { start: string; end: string };
+  /** Legacy default hours (also used as fallback for days that are missing). */
+  businessHours: DailyBusinessHours;
+  /** Sunday (0) → Saturday (6). */
+  weeklyBusinessHours: DailyBusinessHours[];
 };
+
+export function getBusinessHoursForDate(settings: SettingsState, date: Date): DailyBusinessHours {
+  const idx = date.getDay();
+  const fromWeek = settings.weeklyBusinessHours?.[idx];
+  return {
+    start: fromWeek?.start ?? settings.businessHours.start ?? DEFAULT_BUSINESS_HOURS.start,
+    end: fromWeek?.end ?? settings.businessHours.end ?? DEFAULT_BUSINESS_HOURS.end,
+  };
+}
+
+function ensureWeeklyHours(hours: DailyBusinessHours | undefined, weekly: any): DailyBusinessHours[] {
+  const fallback: DailyBusinessHours = {
+    start: hours?.start ?? DEFAULT_BUSINESS_HOURS.start,
+    end: hours?.end ?? DEFAULT_BUSINESS_HOURS.end,
+  };
+  if (Array.isArray(weekly) && weekly.length === 7) {
+    return weekly.map((d) => ({
+      start: typeof d?.start === "string" ? d.start : fallback.start,
+      end: typeof d?.end === "string" ? d.end : fallback.end,
+    }));
+  }
+  return Array.from({ length: 7 }, () => ({ ...fallback }));
+}
+
+function summarizeWeekly(week: DailyBusinessHours[]) {
+  if (!Array.isArray(week) || week.length !== 7) return "Not set";
+  const first = week[0];
+  const allSame = week.every((d) => d.start === first.start && d.end === first.end);
+  return allSame ? `Every day: ${first.start}–${first.end}` : "Custom by day";
+}
 
 export function loadSettings(): SettingsState {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { businessHours: DEFAULT_BUSINESS_HOURS };
+    if (!raw) {
+      return {
+        businessHours: DEFAULT_BUSINESS_HOURS,
+        weeklyBusinessHours: ensureWeeklyHours(DEFAULT_BUSINESS_HOURS, null),
+      };
+    }
     const parsed = JSON.parse(raw) as SettingsState;
+    const businessHours = {
+      start: (parsed as any)?.businessHours?.start ?? DEFAULT_BUSINESS_HOURS.start,
+      end: (parsed as any)?.businessHours?.end ?? DEFAULT_BUSINESS_HOURS.end,
+    };
     return {
-      businessHours: {
-        start: parsed.businessHours?.start ?? DEFAULT_BUSINESS_HOURS.start,
-        end: parsed.businessHours?.end ?? DEFAULT_BUSINESS_HOURS.end,
-      },
+      businessHours,
+      weeklyBusinessHours: ensureWeeklyHours(businessHours, (parsed as any)?.weeklyBusinessHours),
     };
   } catch {
-    return { businessHours: DEFAULT_BUSINESS_HOURS };
+    return {
+      businessHours: DEFAULT_BUSINESS_HOURS,
+      weeklyBusinessHours: ensureWeeklyHours(DEFAULT_BUSINESS_HOURS, null),
+    };
   }
 }
 
@@ -107,23 +160,70 @@ export function SettingsTab({
           <CardTitle>Business hours</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label>Opens</Label>
-              <Input
-                type="time"
-                value={settings.businessHours.start}
-                onChange={(e) => onChange({ ...settings, businessHours: { ...settings.businessHours, start: e.target.value } })}
-              />
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background p-4">
+            <div>
+              <div className="font-medium text-foreground">Weekly hours</div>
+              <div className="text-sm text-muted-foreground">{summarizeWeekly(settings.weeklyBusinessHours)}</div>
             </div>
-            <div className="grid gap-2">
-              <Label>Closes</Label>
-              <Input
-                type="time"
-                value={settings.businessHours.end}
-                onChange={(e) => onChange({ ...settings, businessHours: { ...settings.businessHours, end: e.target.value } })}
-              />
-            </div>
+
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="rounded-full">Edit weekly hours</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-xl">
+                <DialogHeader>
+                  <DialogTitle className="font-display">Business hours (weekly)</DialogTitle>
+                  <DialogDescription>Set opening and closing times for each day. Bookings are blocked outside these hours.</DialogDescription>
+                </DialogHeader>
+
+                <div className="mt-2 grid gap-3">
+                  {([
+                    "Sunday",
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                  ] as const).map((label, idx) => {
+                    const day = settings.weeklyBusinessHours?.[idx] ?? DEFAULT_BUSINESS_HOURS;
+                    return (
+                      <div key={label} className="grid gap-2 rounded-2xl border border-border bg-background p-4 sm:grid-cols-[120px,1fr,1fr] sm:items-center">
+                        <div className="font-medium text-foreground">{label}</div>
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs">Opens</Label>
+                          <Input
+                            type="time"
+                            value={day.start}
+                            onChange={(e) => {
+                              const next = [...settings.weeklyBusinessHours];
+                              next[idx] = { ...day, start: e.target.value };
+                              onChange({ ...settings, weeklyBusinessHours: next });
+                            }}
+                          />
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs">Closes</Label>
+                          <Input
+                            type="time"
+                            value={day.end}
+                            onChange={(e) => {
+                              const next = [...settings.weeklyBusinessHours];
+                              next[idx] = { ...day, end: e.target.value };
+                              onChange({ ...settings, weeklyBusinessHours: next });
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-2 text-sm text-muted-foreground">
+                  Tip: If you want the same hours every day, set one day then copy/paste the times.
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
           <div className="text-sm text-muted-foreground">
             Used to suggest nearest alternate slots (±2 hours) when a requested slot is unavailable.

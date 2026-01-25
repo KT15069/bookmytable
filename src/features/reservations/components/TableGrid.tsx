@@ -60,8 +60,15 @@ export function TableGrid({
                 </div>
               </div>
 
-              <div className="mt-2.5 min-h-[44px] bg-background/70 p-2.5 py-0 mx-[15px] my-0 opacity-0 shadow-none rounded-full">
-                {status.kind === "booked" ? <div className="text-sm font-medium text-foreground">{status.active.name}</div> : <div className="text-sm font-medium text-foreground opacity-0 select-none">Placeholder</div>}
+              {/* Booker name (kept inside the card bounds) */}
+              <div className={cn(
+              "mt-2 rounded-full bg-background/70 px-3 py-1.5",
+              "max-w-full",
+              status.kind === "booked" ? "opacity-100" : "opacity-0",
+              )}>
+                <div className="text-sm font-medium text-foreground truncate">
+                  {status.kind === "booked" ? status.active.name : "Placeholder"}
+                </div>
               </div>
             </div>
           </button>;

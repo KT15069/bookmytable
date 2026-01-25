@@ -5,18 +5,19 @@ import { Button } from "@/components/ui/button";
 
 import type { ReservationRow, RestaurantTable } from "../types";
 import { ReservationForm } from "./ReservationForm";
+import type { SettingsState } from "./SettingsTab";
 
 export function ReservationFormDialog({
   tables,
   dayReservations,
   selectedDate,
-  businessHours,
+  settings,
   onBook,
 }: {
   tables: RestaurantTable[];
   dayReservations: ReservationRow[];
   selectedDate: Date;
-  businessHours: { start: string; end: string };
+  settings: SettingsState;
   onBook: (args: {
     tableId: string;
     guestCount: number;
@@ -43,7 +44,7 @@ export function ReservationFormDialog({
           tables={tables}
           dayReservations={dayReservations}
           selectedDate={selectedDate}
-          businessHours={businessHours}
+          settings={settings}
           submitLabel="Check & book"
           onBook={onBook}
           onBooked={() => setOpen(false)}

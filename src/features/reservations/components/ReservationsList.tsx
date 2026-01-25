@@ -20,7 +20,8 @@ export function ReservationsList({
   return (
     <Card className="shadow-card">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle>Reservations — {tableId}</CardTitle>
+        {/* Do not expose internal table UUIDs */}
+        <CardTitle>Reservations</CardTitle>
         <Badge variant="secondary">{tableRes.length} today</Badge>
       </CardHeader>
       <CardContent className="grid gap-3">
