@@ -272,7 +272,7 @@ export function DashboardShell() {
             </Card>
 
             <div className="lg:sticky lg:top-6">
-              <DayBookingsList reservations={dayReservations} onCancel={handleCancel} />
+              <DayBookingsList tables={tables} reservations={dayReservations} onCancel={handleCancel} />
             </div>
           </TabsContent>
 
@@ -313,7 +313,7 @@ export function DashboardShell() {
                   <CardContent className="p-8 text-sm text-muted-foreground">Loading…</CardContent>
                 </Card>
               ) : (
-                <ReservationsRangeList reservations={analyticsReservations} onCancel={handleCancel} />
+                <ReservationsRangeList tables={tables} reservations={analyticsReservations} onCancel={handleCancel} />
               )}
             </div>
           </TabsContent>

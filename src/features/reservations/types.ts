@@ -1,6 +1,7 @@
 export type RestaurantTable = {
   id: string;
   label: string;
+  tableNumber?: number;
   minGuests: number;
   maxGuests: number;
 };

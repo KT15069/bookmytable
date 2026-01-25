@@ -26,6 +26,7 @@ function toModel(row: RestaurantTableRow): RestaurantTable {
   return {
     id: row.id,
     label: row.name,
+    tableNumber: row.table_number,
     minGuests: row.min_occupancy,
     maxGuests: row.max_occupancy,
   };
