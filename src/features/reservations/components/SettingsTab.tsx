@@ -170,13 +170,13 @@ export function SettingsTab({
               <DialogTrigger asChild>
                 <Button variant="outline" className="rounded-full">Edit weekly hours</Button>
               </DialogTrigger>
-              <DialogContent className="max-w-xl">
+              <DialogContent className="w-[min(1100px,calc(100vw-2rem))] max-w-none">
                 <DialogHeader>
                   <DialogTitle className="font-display">Business hours (weekly)</DialogTitle>
                   <DialogDescription>Set opening and closing times for each day. Bookings are blocked outside these hours.</DialogDescription>
                 </DialogHeader>
 
-                <div className="mt-2 grid gap-3">
+                <div className="mt-2 grid gap-3 md:grid-cols-2">
                   {([
                     "Sunday",
                     "Monday",
