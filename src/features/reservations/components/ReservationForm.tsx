@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { differenceInMinutes, format, set } from "date-fns";
+import { addDays, differenceInMinutes, format, set } from "date-fns";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 
@@ -77,11 +77,21 @@ export function ReservationForm({
   async function handleSubmit(values: FormValues) {
     const date = new Date(values.date + "T00:00:00");
     const startAt = combineDateAndTime(date, values.start);
-    const endAt = combineDateAndTime(date, values.end);
+    let endAt = combineDateAndTime(date, values.end);
+
+    // Allow bookings that cross midnight (e.g. 23:30–00:30).
+    if (endAt <= startAt) {
+      endAt = addDays(endAt, 1);
+    }
 
     const businessHours = getBusinessHoursForDate(settings, date);
     const businessStart = combineDateAndTime(date, businessHours.start ?? DEFAULT_BUSINESS_HOURS.start);
-    const businessEnd = combineDateAndTime(date, businessHours.end ?? DEFAULT_BUSINESS_HOURS.end);
+    let businessEnd = combineDateAndTime(date, businessHours.end ?? DEFAULT_BUSINESS_HOURS.end);
+
+    // Support business hours that close after midnight (e.g. 08:00–00:00 or 18:00–02:00).
+    if (businessEnd <= businessStart) {
+      businessEnd = addDays(businessEnd, 1);
+    }
 
     if (startAt < businessStart || endAt > businessEnd) {
       toast({
