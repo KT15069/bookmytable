@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.restaurant-onboarding]
 verify_jwt = false
+
+[functions.reservation-email]
+verify_jwt = false
+
+[functions.reservation-reminder-cron]
+verify_jwt = false
