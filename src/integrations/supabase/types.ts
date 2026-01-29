@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      reservation_email_jobs: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          id: string
+          job_type: string
+          last_error: string | null
+          reservation_id: string
+          restaurant_id: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          to_email: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          job_type: string
+          last_error?: string | null
+          reservation_id: string
+          restaurant_id: string
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+          to_email: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          job_type?: string
+          last_error?: string | null
+          reservation_id?: string
+          restaurant_id?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          to_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_email_jobs_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservations: {
         Row: {
           created_at: string
