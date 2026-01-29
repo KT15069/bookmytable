@@ -42,6 +42,7 @@ import { ReservationForm } from "./ReservationForm";
 import { ReservationsRangeList } from "./ReservationsRangeList";
 import { AIAssistantTab } from "./AIAssistantTab";
 import { DayBookingsList } from "./DayBookingsList";
+import { sendReservationEmail } from "../email";
 
 export function DashboardShell() {
   const { toast } = useToast();
@@ -118,6 +119,20 @@ export function DashboardShell() {
 
   async function handleCancel(id: string) {
     await cancelReservation(id);
+
+    try {
+      await sendReservationEmail({ action: "cancelled", reservationId: id });
+    } catch (e) {
+      console.error("Cancellation email failed:", e);
+      toast({
+        title: "Reservation cancelled (email failed)",
+        description: "The booking was cancelled, but the cancellation email could not be sent.",
+        variant: "destructive",
+      });
+      qc.invalidateQueries({ queryKey: ["reservations"] });
+      return;
+    }
+
     toast({ title: "Reservation cancelled" });
     qc.invalidateQueries({ queryKey: ["reservations"] });
   }
@@ -136,7 +151,7 @@ export function DashboardShell() {
       throw new Error("Please finish restaurant setup first.");
     }
 
-    await createReservation({
+    const created = await createReservation({
       restaurant_id: activeRestaurantId,
       table_id: args.tableId,
       guest_count: args.guestCount,
@@ -147,6 +162,17 @@ export function DashboardShell() {
       phone: args.phone,
       status: "booked",
     });
+
+    try {
+      await sendReservationEmail({ action: "confirmation", reservationId: created.id });
+    } catch (e) {
+      console.error("Confirmation email failed:", e);
+      toast({
+        title: "Booked (email failed)",
+        description: "The reservation was saved, but the confirmation email could not be sent.",
+        variant: "destructive",
+      });
+    }
 
     qc.invalidateQueries({ queryKey: ["reservations"] });
   }
