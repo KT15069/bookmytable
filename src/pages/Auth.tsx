@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, supabaseUntyped } from "@/integrations/supabase/client";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { RestaurantOnboardingDialog } from "@/features/onboarding/RestaurantOnboardingDialog";
 
@@ -33,7 +33,7 @@ export default function Auth() {
     if (!session) return;
 
     // If the user has no restaurant yet, open onboarding.
-    supabase
+    supabaseUntyped
       .from("restaurant_members")
       .select("restaurant_id")
       .limit(1)
