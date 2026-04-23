@@ -13,7 +13,11 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { RestaurantOnboardingDialog } from "@/features/onboarding/RestaurantOnboardingDialog";
 
 const emailSchema = z.string().trim().email().max(255);
-const passwordSchema = z.string().min(8).max(72);
+const signInPasswordSchema = z.string().min(1, "Password is required").max(72);
+const signUpPasswordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .max(72, "Password must be 72 characters or less");
 
 export default function Auth() {
   const { toast } = useToast();
@@ -48,14 +52,16 @@ export default function Auth() {
     setBusy(true);
     try {
       const e = emailSchema.parse(email);
-      const p = passwordSchema.parse(password);
 
       if (mode === "signin") {
+        const p = signInPasswordSchema.parse(password);
         const { error } = await supabase.auth.signInWithPassword({ email: e, password: p });
         if (error) throw error;
         toast({ title: "Signed in" });
         return;
       }
+
+      const p = signUpPasswordSchema.parse(password);
 
       const redirectUrl = `${window.location.origin}/app`;
       const { error } = await supabase.auth.signUp({
@@ -70,9 +76,16 @@ export default function Auth() {
         description: "If email confirmation is enabled, check your inbox to finish signup.",
       });
     } catch (err: any) {
+      const description =
+        err instanceof z.ZodError
+          ? err.issues[0]?.message ?? "Please check your input and try again."
+          : typeof err?.message === "string"
+            ? err.message
+            : "Please try again.";
+
       toast({
         title: "Authentication failed",
-        description: typeof err?.message === "string" ? err.message : "Please try again.",
+        description,
         variant: "destructive",
       });
     } finally {
