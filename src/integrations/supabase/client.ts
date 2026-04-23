@@ -40,7 +40,8 @@ export function getSupabaseConfig(): RuntimeSupabaseConfig & {
 
   // 2) Vite env (preferred when available)
   const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
-  const envAnon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
+  const envAnon = ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY ??
+    (import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY) as string | undefined;
   if (envUrl && envAnon) return { url: normalizeUrl(envUrl), anonKey: envAnon.trim(), source: "env" };
 
   // 3) Fallback hardcoded values (keeps demo working)
