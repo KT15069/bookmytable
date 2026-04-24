@@ -12,7 +12,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { isSupabaseConfigured } from "@/integrations/supabase/client";
@@ -143,6 +142,28 @@ export function SettingsTab({
   const [nameEdits, setNameEdits] = useState<Record<string, string>>({});
   const [minEdits, setMinEdits] = useState<Record<string, string>>({});
   const [maxEdits, setMaxEdits] = useState<Record<string, string>>({});
+  const [weeklyHoursOpen, setWeeklyHoursOpen] = useState(false);
+
+  async function extractEdgeFunctionErrorMessage(err: any): Promise<string | null> {
+    const res: Response | undefined = err?.context;
+    if (res && typeof (res as any).json === "function") {
+      try {
+        const body = await (res as any).json();
+        const msg = body?.error ?? body?.message;
+        if (typeof msg === "string" && msg.trim()) return msg;
+        return JSON.stringify(body);
+      } catch {
+        // ignore
+      }
+    }
+    if (typeof err?.message === "string" && err.message.trim()) return err.message;
+    return null;
+  }
+
+  async function showActionError(title: string, err: any, fallback: string) {
+    const message = await extractEdgeFunctionErrorMessage(err);
+    toast({ title, description: message ?? fallback, variant: "destructive" });
+  }
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -172,10 +193,10 @@ export function SettingsTab({
               <div className="text-sm text-muted-foreground">{summarizeWeekly(settings.weeklyBusinessHours)}</div>
             </div>
 
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="rounded-full">Edit weekly hours</Button>
-              </DialogTrigger>
+            <Dialog open={weeklyHoursOpen} onOpenChange={setWeeklyHoursOpen}>
+              <Button variant="outline" className="rounded-full" onClick={() => setWeeklyHoursOpen(true)}>
+                Edit weekly hours
+              </Button>
               <DialogContent className="w-[min(1100px,calc(100vw-2rem))] max-w-none">
                 <DialogHeader>
                   <DialogTitle className="font-display">Business hours (weekly)</DialogTitle>
