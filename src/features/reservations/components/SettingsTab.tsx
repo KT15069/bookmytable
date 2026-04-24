@@ -339,11 +339,7 @@ export function SettingsTab({
                     setNewMaxGuests("4");
                     qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
                   } catch (e: any) {
-                    toast({
-                      title: "Could not add table",
-                      description: typeof e?.message === "string" ? e.message : "Please check passcode and table values.",
-                      variant: "destructive",
-                    });
+                    await showActionError("Could not add table", e, "Please check passcode and table values.");
                   }
                 }}
               >
@@ -426,11 +422,7 @@ export function SettingsTab({
                               toast({ title: "Table updated" });
                               qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
                             } catch (e: any) {
-                              toast({
-                                title: "Could not update",
-                                description: typeof e?.message === "string" ? e.message : "Please check passcode and table values.",
-                                variant: "destructive",
-                              });
+                              await showActionError("Could not update", e, "Please check passcode and table values.");
                             }
                           }}
                         >
@@ -447,11 +439,7 @@ export function SettingsTab({
                               toast({ title: "Table deleted" });
                               qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
                             } catch (e: any) {
-                              toast({
-                                title: "Could not delete",
-                                description: typeof e?.message === "string" ? e.message : "Please check passcode.",
-                                variant: "destructive",
-                              });
+                              await showActionError("Could not delete", e, "Please check passcode.");
                             }
                           }}
                         >
