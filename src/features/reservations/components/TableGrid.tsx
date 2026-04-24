@@ -51,7 +51,7 @@ export function TableGrid({
             <div className="flex h-full flex-col">
               <div className="font-display text-lg leading-none text-foreground">{t.label}</div>
               <div className="mt-1.5 text-xs text-muted-foreground">
-                {t.minGuests === t.maxGuests ? `1–${t.maxGuests} guests` : `${t.minGuests}–${t.maxGuests} guests`}
+                {t.minGuests === t.maxGuests ? `${t.maxGuests} guests` : `${t.minGuests}–${t.maxGuests} guests`}
               </div>
 
               <div className="mt-auto pt-3">
