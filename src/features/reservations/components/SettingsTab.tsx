@@ -15,14 +15,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import {
-  isSupabaseConfigured,
-} from "@/integrations/supabase/client";
+import { isSupabaseConfigured } from "@/integrations/supabase/client";
 import { DEFAULT_BUSINESS_HOURS } from "../constants";
 import {
   adminCreateTable,
   adminDeleteTable,
-  adminUpdateCapacity,
+  adminUpdateTable,
   fetchRestaurantTables,
 } from "../tablesApi";
 
@@ -32,9 +30,7 @@ const TABLE_ADMIN_KEY = "restaurant.tables.adminPasscode.v1";
 export type DailyBusinessHours = { start: string; end: string };
 
 export type SettingsState = {
-  /** Legacy default hours (also used as fallback for days that are missing). */
   businessHours: DailyBusinessHours;
-  /** Sunday (0) → Saturday (6). */
   weeklyBusinessHours: DailyBusinessHours[];
 };
 
@@ -66,6 +62,11 @@ function summarizeWeekly(week: DailyBusinessHours[]) {
   const first = week[0];
   const allSame = week.every((d) => d.start === first.start && d.end === first.end);
   return allSame ? `Every day: ${first.start}–${first.end}` : "Custom by day";
+}
+
+function clampGuests(n: number) {
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.min(50, Math.trunc(n)));
 }
 
 export function loadSettings(): SettingsState {
@@ -135,8 +136,13 @@ export function SettingsTab({
 
   const tableRows = tablesData?.rows ?? [];
   const [newTableNumber, setNewTableNumber] = useState("");
-  const [newCapacity, setNewCapacity] = useState("2");
-  const [capacityEdits, setCapacityEdits] = useState<Record<string, string>>({});
+  const [newTableName, setNewTableName] = useState("");
+  const [newMinGuests, setNewMinGuests] = useState("1");
+  const [newMaxGuests, setNewMaxGuests] = useState("4");
+
+  const [nameEdits, setNameEdits] = useState<Record<string, string>>({});
+  const [minEdits, setMinEdits] = useState<Record<string, string>>({});
+  const [maxEdits, setMaxEdits] = useState<Record<string, string>>({});
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -243,17 +249,15 @@ export function SettingsTab({
                 type="password"
                 value={adminPasscode}
                 onChange={(e) => setAdminPasscode(e.target.value)}
-                placeholder="Required to add / edit / delete tables"
+                placeholder="Use the passcode set during onboarding"
               />
-              <div className="text-xs text-muted-foreground">
-                Used to authorize table edits. Stored only in this browser.
-              </div>
+              <div className="text-xs text-muted-foreground">Used to authorize table edits. Stored only in this browser.</div>
             </div>
           </div>
 
           <div className="grid gap-3 rounded-2xl border border-border bg-background p-4">
             <div className="font-medium text-foreground">Add a table</div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="grid gap-2">
                 <Label>Table number</Label>
                 <Input
@@ -267,15 +271,29 @@ export function SettingsTab({
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Capacity</Label>
+                <Label>Table name</Label>
+                <Input value={newTableName} onChange={(e) => setNewTableName(e.target.value)} placeholder="e.g. Patio 1" />
+              </div>
+              <div className="grid gap-2">
+                <Label>Min guests</Label>
                 <Input
                   inputMode="numeric"
                   type="number"
                   min={1}
                   max={50}
-                  value={newCapacity}
-                  onChange={(e) => setNewCapacity(e.target.value)}
-                  placeholder="e.g. 4"
+                  value={newMinGuests}
+                  onChange={(e) => setNewMinGuests(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Max guests</Label>
+                <Input
+                  inputMode="numeric"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={newMaxGuests}
+                  onChange={(e) => setNewMaxGuests(e.target.value)}
                 />
               </div>
             </div>
@@ -289,15 +307,20 @@ export function SettingsTab({
                     await adminCreateTable({
                       passcode: adminPasscode,
                       tableNumber: Number(newTableNumber),
-                      capacity: Number(newCapacity),
+                      name: newTableName.trim() || `Table ${newTableNumber}`,
+                      minOccupancy: clampGuests(Number(newMinGuests)),
+                      maxOccupancy: clampGuests(Number(newMaxGuests)),
                     });
                     toast({ title: "Table added" });
                     setNewTableNumber("");
+                    setNewTableName("");
+                    setNewMinGuests("1");
+                    setNewMaxGuests("4");
                     qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
                   } catch (e: any) {
                     toast({
                       title: "Could not add table",
-                      description: typeof e?.message === "string" ? e.message : "Please check passcode + values.",
+                      description: typeof e?.message === "string" ? e.message : "Please check passcode and table values.",
                       variant: "destructive",
                     });
                   }
@@ -313,10 +336,6 @@ export function SettingsTab({
                 Refresh list
               </Button>
             </div>
-
-            <div className="text-xs text-muted-foreground">
-              Note: reservations store the table as the table number string. Avoid changing table numbers after bookings exist.
-            </div>
           </div>
 
           <div className="rounded-2xl border border-border bg-background p-4">
@@ -329,52 +348,66 @@ export function SettingsTab({
             ) : tableRows.length ? (
               <div className="mt-3 grid gap-2">
                 {tableRows.map((r) => {
-                  const value = capacityEdits[r.id] ?? String(r.capacity);
+                  const nameValue = nameEdits[r.id] ?? String(r.name);
+                  const minValue = minEdits[r.id] ?? String(r.min_occupancy);
+                  const maxValue = maxEdits[r.id] ?? String(r.max_occupancy);
                   return (
                     <div
                       key={r.id}
-                      className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-card p-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-card p-3 sm:flex-row sm:items-end sm:justify-between"
                     >
-                      <div>
-                        <div className="font-medium text-foreground">Table {r.table_number}</div>
-                        <div className="text-xs text-muted-foreground">ID: {r.id}</div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs">Capacity</Label>
+                      <div className="grid flex-1 gap-2 sm:grid-cols-3">
+                        <div className="grid gap-1">
+                          <Label className="text-xs">Table</Label>
                           <Input
-                            className="w-24"
+                            value={nameValue}
+                            onChange={(e) => setNameEdits((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                          />
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-xs">Min guests</Label>
+                          <Input
                             inputMode="numeric"
                             type="number"
                             min={1}
                             max={50}
-                            value={value}
-                            onChange={(e) =>
-                              setCapacityEdits((prev) => ({
-                                ...prev,
-                                [r.id]: e.target.value,
-                              }))
-                            }
+                            value={minValue}
+                            onChange={(e) => setMinEdits((prev) => ({ ...prev, [r.id]: e.target.value }))}
                           />
                         </div>
+                        <div className="grid gap-1">
+                          <Label className="text-xs">Max guests</Label>
+                          <Input
+                            inputMode="numeric"
+                            type="number"
+                            min={1}
+                            max={50}
+                            value={maxValue}
+                            onChange={(e) => setMaxEdits((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                          />
+                        </div>
+                      </div>
 
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-xs text-muted-foreground">Table #{r.table_number}</div>
                         <Button
                           size="sm"
                           className="rounded-full"
                           onClick={async () => {
                             try {
-                              await adminUpdateCapacity({
+                              await adminUpdateTable({
                                 passcode: adminPasscode,
                                 id: r.id,
-                                capacity: Number(value),
+                                name: nameValue,
+                                minOccupancy: clampGuests(Number(minValue)),
+                                maxOccupancy: clampGuests(Number(maxValue)),
                               });
-                              toast({ title: "Capacity updated" });
+                              toast({ title: "Table updated" });
                               qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
                             } catch (e: any) {
                               toast({
                                 title: "Could not update",
-                                description: typeof e?.message === "string" ? e.message : "Please check passcode + value.",
+                                description: typeof e?.message === "string" ? e.message : "Please check passcode and table values.",
                                 variant: "destructive",
                               });
                             }
