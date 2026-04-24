@@ -1,76 +1,51 @@
+## Plan to simplify table occupancy during signup (and fix related issues)
 
-## Immediate security fix (because the key was pasted)
-- The `re_...` value in your cURL is a real Resend API key and should be treated as compromised now that it was shared in chat.
-- Since you said “I will rotate it now”, do this in Resend:
-  1) Resend dashboard → **API Keys**
-  2) **Revoke/Delete** the exposed key
-  3) Create a **new** API key (we will use the new one as `RESEND_API_KEY`)
-- Do not paste the new key in chat.
+1. **Redesign onboarding to remove per-table occupancy typing**
+   - Replace the current “enter Min/Max for every table row” flow with a faster setup model:
+     - Select a **layout preset** (Small / Standard / Large), or
+     - Use **table-type counters** (2-seater, 4-seater, 6-seater, 8+ seater).
+   - Keep manual editing optional behind an **“Advanced customize”** toggle, so most users can finish onboarding in under a minute.
+   - Keep table naming auto-generated (`Table 1`, `Table 2`, …) unless advanced mode is opened.
 
----
+2. **Generate occupancy automatically from the simplified inputs**
+   - Convert selected preset/counters into the `tables` payload expected by `restaurant-onboarding`.
+   - Map each generated table to valid occupancy ranges (e.g., 2-seater => min 1, max 2; 4-seater => min 2, max 4).
+   - Continue enforcing backend limits (1–50 guests, min <= max, max 200 tables).
 
-## How to give secrets to Lovable (the safe way)
-We’ll store them as **Supabase Edge Function Secrets** so:
-- they are not committed to git
-- they are available in Edge Functions via `Deno.env.get("...")`
-- they are not exposed to the browser
+3. **Fix current table-management inconsistencies discovered during review**
+   - Align settings-side table management with the actual schema and onboarding model:
+     - `restaurant_tables` requires `restaurant_id`, `name`, `min_occupancy`, `max_occupancy` (not just `capacity`).
+   - Update `manage-restaurant-tables` contract and client calls so create/update operations remain valid and don’t break after onboarding.
+   - Remove/replace the globally shared table passcode path so it matches the per-restaurant passcode security model already used by onboarding.
 
-### Option A (recommended): via Supabase Dashboard
-1) Open Supabase → **Settings → Edge Functions → Secrets**  
-   https://supabase.com/dashboard/project/ecellnikwwjosdvlqsvu/settings/functions
-2) Add these secrets (exact names):
-   - `RESEND_API_KEY` = the *new* Resend key you just generated after rotation
-   - `EMAIL_FROM` = `onboarding@resend.dev` (your choice for now)
-   - `CRON_SECRET` = (generated below)
+4. **Improve UX details and guardrails**
+   - Add onboarding summary before submit (total tables + seat mix).
+   - Add helpful defaults and one-click reset to preset.
+   - Keep “edit later in Settings” clearly visible so users aren’t forced into detailed setup.
 
-### Option B: via Lovable “Secrets” UI
-If Lovable shows you a “Add secret” modal/button when I request secrets, you can paste values there. It writes to the same place (Supabase secrets).  
-(Still: do not paste secrets into chat messages.)
+5. **Spot-fix nearby issues while implementing**
+   - Correct guest-range display edge case in table cards (currently can show `1–X` when min=max).
+   - Remove/avoid exposing internal UUIDs in Settings table list (show friendly table labels/numbers).
+   - Ensure query invalidation and UI refresh still work after onboarding and table edits.
 
----
+6. **Validation and regression checks**
+   - Verify end-to-end flow: signup → onboarding → dashboard load → create reservation.
+   - Verify edited table definitions still produce correct availability matching.
+   - Verify edge-function errors surface cleanly in toast messages.
 
-## Your CRON_SECRET (generated for you)
-Use this as `CRON_SECRET` (you can regenerate if you prefer):
-```text
-cron_7ef0c4c3b0c24d91b08e44dca1d72f84_20260129
-```
-Guidelines:
-- Keep it private
-- Long, random, unguessable
-- If you ever suspect it leaked, rotate it and update the secret
+## Technical details
 
----
+- **Frontend files likely touched**
+  - `src/features/onboarding/RestaurantOnboardingDialog.tsx`
+  - `src/features/reservations/components/SettingsTab.tsx`
+  - `src/features/reservations/tablesApi.ts`
+  - `src/features/reservations/components/TableGrid.tsx`
 
-## What we’ll do right after secrets are saved (implementation work)
-Once you confirm the secrets are added (no need to share values), we will proceed to:
-1) Create Edge Function `reservation-email`
-   - Uses `RESEND_API_KEY` + `EMAIL_FROM`
-   - Sends confirmation/cancellation immediately
-   - Creates/cancels reminder job rows in `reservation_email_jobs`
-2) Create Edge Function `reservation-reminder-cron`
-   - Protected by header `x-cron-secret: <CRON_SECRET>`
-   - Looks up due reminder jobs and sends reminder emails via Resend
-3) Update frontend booking & cancellation flow
-   - After booking: invoke `reservation-email` with `{ action: "confirmation", reservation_id }`
-   - After cancellation: invoke `reservation-email` with `{ action: "cancelled", reservation_id }`
-4) Provide a one-time SQL snippet to schedule the cron job (`pg_cron` + `pg_net`) to call the reminder function every minute
+- **Backend file likely touched**
+  - `supabase/functions/manage-restaurant-tables/index.ts`
 
----
+- **Data model impact**
+  - No new table required for the simplified onboarding UX.
+  - Existing `restaurant_tables` fields (`name`, `min_occupancy`, `max_occupancy`, `capacity`) will be populated consistently from generated table types.
 
-## How you can test with your Resend cURL (optional sanity check)
-Your cURL is correct structurally; after you rotate the key, you can validate Resend works by running the same command with:
-- `Authorization: Bearer <NEW_KEY>`
-- keep `from: "onboarding@resend.dev"` (works for initial tests)
-If that succeeds, we know Resend is set up correctly before we wire it into Supabase.
-
----
-
-## What I need from you to continue
-1) Rotate the leaked Resend key (you’re already doing this)
-2) Add secrets in Supabase:
-   - `RESEND_API_KEY`
-   - `EMAIL_FROM` = `onboarding@resend.dev`
-   - `CRON_SECRET` = the generated value above
-3) Reply: “Secrets added” (do not paste the values)
-
-After that, we’ll implement the two edge functions and wire the UI flow end-to-end.
+If you approve, I’ll implement this simplified onboarding flow first, then immediately apply the related table-management/security fixes in the same pass.

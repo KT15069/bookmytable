@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -13,11 +13,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+type SeatSize = 2 | 4 | 6 | 8;
+type MixState = Record<SeatSize, number>;
+
+const seatTypeConfig: { size: SeatSize; min: number; max: number }[] = [
+  { size: 2, min: 1, max: 2 },
+  { size: 4, min: 2, max: 4 },
+  { size: 6, min: 4, max: 6 },
+  { size: 8, min: 6, max: 8 },
+];
+
+const presetMixes = {
+  small: { 2: 2, 4: 4, 6: 1, 8: 0 } satisfies MixState,
+  standard: { 2: 4, 4: 6, 6: 2, 8: 1 } satisfies MixState,
+  large: { 2: 6, 4: 10, 6: 4, 8: 2 } satisfies MixState,
+} as const;
+
+type PresetKey = keyof typeof presetMixes;
+
+type TablePayloadRow = {
+  name: string;
+  min_occupancy: number;
+  max_occupancy: number;
+};
 
 async function extractEdgeFunctionErrorMessage(err: any): Promise<string | null> {
-  // supabase-js FunctionsHttpError contains a Response in `context`.
   const res: Response | undefined = err?.context;
   if (res && typeof (res as any).json === "function") {
     try {
@@ -44,18 +68,38 @@ const schema = z
     restaurant_name: z.string().trim().min(1).max(120),
     address: z.string().trim().min(1).max(300),
     contact_number: z.string().trim().min(7).max(40),
-    number_of_tables: z.coerce.number().int().min(1).max(200),
     table_admin_passcode: z.string().trim().min(6).max(200),
-    tables: z.array(tableSchema),
-  })
-  .refine((v) => v.tables.length === v.number_of_tables, {
-    message: "Please configure all tables",
-    path: ["tables"],
+    tables: z.array(tableSchema).min(1).max(200),
   })
   .refine((v) => v.tables.every((t) => t.min_occupancy <= t.max_occupancy), {
     message: "Min occupancy cannot exceed max",
     path: ["tables"],
   });
+
+function clampCount(n: number) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(60, Math.trunc(n)));
+}
+
+function clampOccupancy(n: number) {
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.min(50, Math.trunc(n)));
+}
+
+function generateTablesFromMix(mix: MixState): TablePayloadRow[] {
+  const rows: TablePayloadRow[] = [];
+  for (const cfg of seatTypeConfig) {
+    const count = clampCount(mix[cfg.size]);
+    for (let i = 0; i < count; i += 1) {
+      rows.push({
+        name: `Table ${rows.length + 1}`,
+        min_occupancy: cfg.min,
+        max_occupancy: cfg.max,
+      });
+    }
+  }
+  return rows;
+}
 
 export function RestaurantOnboardingDialog({
   open,
@@ -74,23 +118,20 @@ export function RestaurantOnboardingDialog({
   const [address, setAddress] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [tableAdminPasscode, setTableAdminPasscode] = useState("");
-  const [numTables, setNumTables] = useState(6);
-  const [tables, setTables] = useState(() =>
-    Array.from({ length: 6 }).map((_, i) => ({ name: `Table ${i + 1}`, min_occupancy: 1, max_occupancy: 4 })),
-  );
 
-  const tableRows = useMemo(() => {
-    const n = Math.max(1, Math.min(200, Number(numTables) || 1));
-    if (tables.length === n) return tables;
-    if (tables.length < n) {
-      return [...tables, ...Array.from({ length: n - tables.length }).map((_, i) => ({
-        name: `Table ${tables.length + i + 1}`,
-        min_occupancy: 1,
-        max_occupancy: 4,
-      }))];
-    }
-    return tables.slice(0, n);
-  }, [tables, numTables]);
+  const [preset, setPreset] = useState<PresetKey | "custom">("standard");
+  const [seatMix, setSeatMix] = useState<MixState>(presetMixes.standard);
+  const [advancedMode, setAdvancedMode] = useState(false);
+  const [advancedTables, setAdvancedTables] = useState<TablePayloadRow[]>(() => generateTablesFromMix(presetMixes.standard));
+
+  const generatedTables = useMemo(() => generateTablesFromMix(seatMix), [seatMix]);
+
+  useEffect(() => {
+    setAdvancedTables(generatedTables);
+  }, [generatedTables]);
+
+  const tableRows = advancedMode ? advancedTables : generatedTables;
+  const totalTables = tableRows.length;
 
   async function submit() {
     setBusy(true);
@@ -99,12 +140,17 @@ export function RestaurantOnboardingDialog({
         restaurant_name: restaurantName,
         address,
         contact_number: contactNumber,
-        number_of_tables: numTables,
         table_admin_passcode: tableAdminPasscode,
         tables: tableRows,
       });
 
-      const { data, error } = await supabase.functions.invoke("restaurant-onboarding", { body: payload });
+      const { data, error } = await supabase.functions.invoke("restaurant-onboarding", {
+        body: {
+          ...payload,
+          number_of_tables: payload.tables.length,
+        },
+      });
+
       if (error) {
         const msg = await extractEdgeFunctionErrorMessage(error);
         toast({
@@ -121,7 +167,6 @@ export function RestaurantOnboardingDialog({
       onDone?.();
       return data;
     } catch (e: any) {
-      // Zod errors are arrays of issues; show a friendly single-line message.
       if (e instanceof z.ZodError) {
         const msg = e.issues?.[0]?.message ?? "Please review your inputs.";
         toast({ title: "Setup failed", description: msg, variant: "destructive" });
@@ -134,17 +179,12 @@ export function RestaurantOnboardingDialog({
     }
   }
 
-  function clampOccupancy(n: number) {
-    if (!Number.isFinite(n)) return 1;
-    return Math.max(1, Math.min(50, Math.trunc(n)));
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Set up your restaurant</DialogTitle>
-          <DialogDescription>One-time setup: details + tables + a separate passcode for table customization.</DialogDescription>
+          <DialogDescription>Quick setup: details + table mix + a passcode for future table edits.</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 lg:grid-cols-2">
@@ -178,21 +218,70 @@ export function RestaurantOnboardingDialog({
           <Card className="rounded-2xl border border-border/70 bg-card p-4">
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label>Number of tables</Label>
-                <Input inputMode="numeric" type="number" min={1} max={200} value={numTables} onChange={(e) => setNumTables(Number(e.target.value))} />
+                <Label>Layout preset</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.keys(presetMixes) as PresetKey[]).map((key) => (
+                    <Button
+                      key={key}
+                      type="button"
+                      variant={preset === key ? "default" : "outline"}
+                      className="rounded-full capitalize"
+                      onClick={() => {
+                        setPreset(key);
+                        setSeatMix(presetMixes[key]);
+                      }}
+                    >
+                      {key}
+                    </Button>
+                  ))}
+                </div>
               </div>
 
-              <div className="max-h-[360px] overflow-auto rounded-2xl border border-border/70 bg-background p-3">
-                <div className="grid gap-2">
-                  {tableRows.map((t, idx) => (
-                    <div key={idx} className="grid gap-2 rounded-xl border border-border/70 bg-card p-3">
-                      <div className="grid gap-2 sm:grid-cols-3">
-                        <div className="sm:col-span-1">
+              <div className="grid gap-2">
+                <Label>Table mix</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {seatTypeConfig.map((cfg) => (
+                    <div key={cfg.size} className="grid gap-1 rounded-xl border border-border/70 bg-background px-3 py-2">
+                      <Label className="text-xs">{cfg.size}-seater tables</Label>
+                      <Input
+                        inputMode="numeric"
+                        type="number"
+                        min={0}
+                        max={60}
+                        value={seatMix[cfg.size]}
+                        onChange={(e) => {
+                          setPreset("custom");
+                          setSeatMix((prev) => ({ ...prev, [cfg.size]: clampCount(Number(e.target.value)) }));
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm text-muted-foreground">
+                Total tables: {totalTables} · 2-seat: {seatMix[2]} · 4-seat: {seatMix[4]} · 6-seat: {seatMix[6]} · 8+-seat: {seatMix[8]}
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border/70 bg-background px-3 py-2">
+                <div>
+                  <div className="text-sm font-medium text-foreground">Advanced customize</div>
+                  <div className="text-xs text-muted-foreground">Optional: edit table names and min/max occupancy now.</div>
+                </div>
+                <Switch checked={advancedMode} onCheckedChange={setAdvancedMode} />
+              </div>
+
+              {advancedMode ? (
+                <div className="max-h-[220px] overflow-auto rounded-2xl border border-border/70 bg-background p-3">
+                  <div className="grid gap-2">
+                    {advancedTables.map((t, idx) => (
+                      <div key={idx} className="grid gap-2 rounded-xl border border-border/70 bg-card p-3 sm:grid-cols-3">
+                        <div className="grid gap-1">
                           <Label className="text-xs">Table name</Label>
                           <Input
                             value={t.name}
                             onChange={(e) =>
-                              setTables((prev) => {
+                              setAdvancedTables((prev) => {
                                 const next = [...prev];
                                 next[idx] = { ...next[idx], name: e.target.value };
                                 return next;
@@ -200,8 +289,8 @@ export function RestaurantOnboardingDialog({
                             }
                           />
                         </div>
-                        <div>
-                          <Label className="text-xs">Min</Label>
+                        <div className="grid gap-1">
+                          <Label className="text-xs">Min guests</Label>
                           <Input
                             inputMode="numeric"
                             type="number"
@@ -209,24 +298,22 @@ export function RestaurantOnboardingDialog({
                             max={50}
                             value={t.min_occupancy}
                             onChange={(e) =>
-                              setTables((prev) => {
-                                // Prevent empty string -> 0 and keep Min/Max consistent.
+                              setAdvancedTables((prev) => {
                                 if (e.target.value === "") return prev;
                                 const next = [...prev];
                                 const min = clampOccupancy(Number(e.target.value));
-                                const currentMax = clampOccupancy(Number(next[idx]?.max_occupancy ?? 4));
                                 next[idx] = {
                                   ...next[idx],
                                   min_occupancy: min,
-                                  max_occupancy: Math.max(currentMax, min),
+                                  max_occupancy: Math.max(next[idx].max_occupancy, min),
                                 };
                                 return next;
                               })
                             }
                           />
                         </div>
-                        <div>
-                          <Label className="text-xs">Max</Label>
+                        <div className="grid gap-1">
+                          <Label className="text-xs">Max guests</Label>
                           <Input
                             inputMode="numeric"
                             type="number"
@@ -234,16 +321,14 @@ export function RestaurantOnboardingDialog({
                             max={50}
                             value={t.max_occupancy}
                             onChange={(e) =>
-                              setTables((prev) => {
-                                // Prevent empty string -> 0 and keep Min/Max consistent.
+                              setAdvancedTables((prev) => {
                                 if (e.target.value === "") return prev;
                                 const next = [...prev];
                                 const max = clampOccupancy(Number(e.target.value));
-                                const currentMin = clampOccupancy(Number(next[idx]?.min_occupancy ?? 1));
                                 next[idx] = {
                                   ...next[idx],
                                   max_occupancy: max,
-                                  min_occupancy: Math.min(currentMin, max),
+                                  min_occupancy: Math.min(next[idx].min_occupancy, max),
                                 };
                                 return next;
                               })
@@ -251,10 +336,12 @@ export function RestaurantOnboardingDialog({
                           />
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : null}
+
+              <div className="text-xs text-muted-foreground">You can fine-tune tables later in Settings.</div>
             </div>
           </Card>
         </div>

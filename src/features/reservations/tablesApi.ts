@@ -57,26 +57,58 @@ export async function fetchRestaurantTables(): Promise<{ rows: RestaurantTableRo
 
 const passcodeSchema = z.string().trim().min(1).max(200);
 
-export async function adminCreateTable(args: { passcode: string; tableNumber: number; capacity: number }) {
+export async function adminCreateTable(args: {
+  passcode: string;
+  tableNumber: number;
+  name: string;
+  minOccupancy: number;
+  maxOccupancy: number;
+}) {
   const passcode = passcodeSchema.parse(args.passcode);
   const tableNumber = z.number().int().min(1).max(9999).parse(args.tableNumber);
-  const capacity = z.number().int().min(1).max(50).parse(args.capacity);
+  const name = z.string().trim().min(1).max(200).parse(args.name);
+  const minOccupancy = z.number().int().min(1).max(50).parse(args.minOccupancy);
+  const maxOccupancy = z.number().int().min(1).max(50).parse(args.maxOccupancy);
+  if (minOccupancy > maxOccupancy) throw new Error("Min occupancy cannot exceed max occupancy");
 
   const { data, error } = await supabase.functions.invoke("manage-restaurant-tables", {
-    body: { action: "create", passcode, table_number: tableNumber, capacity },
+    body: {
+      action: "create",
+      passcode,
+      table_number: tableNumber,
+      name,
+      min_occupancy: minOccupancy,
+      max_occupancy: maxOccupancy,
+    },
   });
 
   if (error) throw error;
   return data as { data: RestaurantTableRow };
 }
 
-export async function adminUpdateCapacity(args: { passcode: string; id: string; capacity: number }) {
+export async function adminUpdateTable(args: {
+  passcode: string;
+  id: string;
+  name: string;
+  minOccupancy: number;
+  maxOccupancy: number;
+}) {
   const passcode = passcodeSchema.parse(args.passcode);
   const id = z.string().uuid().parse(args.id);
-  const capacity = z.number().int().min(1).max(50).parse(args.capacity);
+  const name = z.string().trim().min(1).max(200).parse(args.name);
+  const minOccupancy = z.number().int().min(1).max(50).parse(args.minOccupancy);
+  const maxOccupancy = z.number().int().min(1).max(50).parse(args.maxOccupancy);
+  if (minOccupancy > maxOccupancy) throw new Error("Min occupancy cannot exceed max occupancy");
 
   const { data, error } = await supabase.functions.invoke("manage-restaurant-tables", {
-    body: { action: "update_capacity", passcode, id, capacity },
+    body: {
+      action: "update_table",
+      passcode,
+      id,
+      name,
+      min_occupancy: minOccupancy,
+      max_occupancy: maxOccupancy,
+    },
   });
 
   if (error) throw error;
